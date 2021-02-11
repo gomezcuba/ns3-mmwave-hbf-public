@@ -267,6 +267,28 @@ def get_delay_data (campaign, params):
         
         return (delay_ul_data, delay_dl_data)
 
+def get_carrier_load (campaign, params, num_layers):
+    load = np.full (len(campaign.db.get_results (params)), np.nan)
+    
+    index = 0
+    for r in campaign.db.get_results (params):
+        available_files = campaign.db.get_result_files (r)
+        
+        data = pd.read_csv (available_files ['RxPacketTrace.txt'], delimiter = "\t", index_col=False, usecols = [0, 2, 5, 16], names = ['mode', 'frame', 'numSym', 'TxLayers'], 
+                            dtype = {'mode' : 'object', 'frame' : 'int64', 'numSym' : 'int64', 'TxLayers' : 'int64'}, engine='python', header=0)
+        
+        avail_frames = data ['frame'].iloc[-1] - data['frame'].iloc[0]
+        # Modified NYU frame structure: 14 sym per subframe (2 are reserved for ctrl), 10 subframes in a frame
+        avail_sym = avail_frames*12*10*num_layers
+        used_sym = data['numSym'].sum()
+        load [index] = used_sym / avail_sym
+        index = index + 1
+    
+    if (index != len (load)):
+        raise Exception ("Less than " + str (len (load)) + " results!")
+        
+    return (load.mean (), get_std_err (load))
+    
 def compute_ecdf (samples):
     # create x axis
     nbins = 100
@@ -1388,3 +1410,77 @@ def plot_sched_scatter_tcp (csv_path, figure_folder, appTime):
         fig_dl.savefig (figure_folder + 'tcp_scatter_dl.png', bbox_inches='tight')
         tikzplotlib.save (figure_folder + 'tcp_scatter_dl.tex')
         plt.close (fig_dl)
+        
+def plot_carrier_load (campaign_dir, nruns, figure_folder):
+        
+    campaign = sem.CampaignManager.load(campaign_dir, runner_type = "ParallelRunner", check_repo = False)
+
+    harqList = [False, True]
+    ipiList = [150, 1500]
+    rlcAmList = [False, True]
+
+    for rlcAm in rlcAmList:
+        for ipi in ipiList:
+            for harq in harqList:
+                
+                title = 'rlcAm=' + str(rlcAm) + '_interPacketInterval=' + str (ipi) + "_harq=" + str (harq)
+                
+                fig_load, ax_load = plt.subplots(1, 2)
+                fig_load.suptitle('LOAD ' + title)
+                plt.setp(ax_load [0], ylim=[0, 1])
+                plt.setp(ax_load [1], ylim=[0, 1])
+                
+                for sched in ['ns3::MmWaveFlexTtiMacScheduler', 'ns3::MmWavePaddedHbfMacScheduler']:    
+                    
+                    params = {
+                    'RngRun' : list (range (nruns)),
+                    'numEnb' : 1,
+                    'numUe' : 7,
+                    'simTime' : 1.2,
+                    'interPacketInterval' : ipi,
+                    'harq' : harq,
+                    'rlcAm' : rlcAm,
+                    'fixedTti' : False,
+                    'sched' : sched,
+                    'bfmod' : 'ns3::MmWaveDftBeamforming',
+                    'nLayers' : 1,
+                    'useTCP' : False
+                    }
+                    
+                    (avg_load, std_load) = get_carrier_load (campaign, params, 1)
+                    # plt.figure (fig_load.number)
+                    ax_load [0].bar (str (sched), avg_load, yerr=std_load)                
+                    # y_axis = y_axis.append (avg_load)
+                    # y_err = y_err.append (std_load)
+                                                
+                for sched in ['ns3::MmWaveAsyncHbfMacScheduler', 'ns3::MmWavePaddedHbfMacScheduler']:    
+                    
+                    params = {
+                    'RngRun' : list (range (nruns)),
+                    'numEnb' : 1,
+                    'numUe' : 7,
+                    'simTime' : 1.2,
+                    'interPacketInterval' : ipi,
+                    'harq' : harq,
+                    'rlcAm' : rlcAm,
+                    'fixedTti' : False,
+                    'sched' : sched,
+                    'bfmod' : 'ns3::MmWaveMMSESpectrumBeamforming',
+                    'nLayers' : 4,
+                    'useTCP' : False
+                    }
+                    
+                    (avg_load, std_load) = get_carrier_load (campaign, params, 4)
+                    # plt.figure (fig_load.number)
+                    ax_load [1].bar (str (sched), avg_load, yerr=std_load)                
+                    # y_axis = y_axis.append (avg_load)
+                    # y_err = y_err.append (std_load)
+                    
+                ax_load [0].tick_params(axis='x', labelrotation=90)
+                ax_load [1].tick_params(axis='x', labelrotation=90)
+                
+                fig_load.legend (loc='center right')
+                fig_load.savefig (figure_folder + 'load_'+title+'.png', bbox_inches='tight')
+                plt.figure (fig_load.number)
+                tikzplotlib.save (figure_folder + 'load_'+title+'.tex')
+                plt.close (fig_load)           
