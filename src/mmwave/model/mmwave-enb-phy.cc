@@ -104,6 +104,11 @@ MmWaveEnbPhy::MmWaveEnbPhy (std::vector<Ptr<MmWaveSpectrumPhy> > dlPhyList, std:
   m_enbCphySapProvider = new MemberLteEnbCphySapProvider<MmWaveEnbPhy> (this);
   m_roundFromLastUeSinrUpdate = 0;
   Simulator::ScheduleNow (&MmWaveEnbPhy::StartSubFrame, this);
+  
+  std::ofstream f; 
+  f.open ("padded-symbols.txt", std::ios::out);
+  f << "frame" << "\t" << "subframe" << "\t" << "layerInd" << "\t" << "paddedSymbols" << "\n";
+  f.close ();
 }
 
 MmWaveEnbPhy::~MmWaveEnbPhy ()
@@ -1414,9 +1419,10 @@ MmWaveEnbPhy::StartSlot (void)
           for (uint8_t layerInd = 0; layerInd < currNumLayers; layerInd++)
             {
               if (layerInd>0)
-        	{
-        	  m_slotNum++;
-        	}//TODO Revise. If I undesrtand correctly this should this be +1 [Felipe]
+            	{
+            	  m_slotNum++;
+            	}//TODO Revise. If I undesrtand correctly this should this be +1 [Felipe]
+                  
               currSlot = m_currSfAllocInfo.m_slotAllocInfo[m_slotNum];
               slotPeriod = NanoSeconds (1000.0 * m_phyMacConfig->GetSymbolPeriod () * currSlot.m_dci.m_numSym);
               NS_ASSERT (currSlot.m_tddMode == SlotAllocInfo::DL_slotAllocInfo);
@@ -1470,6 +1476,25 @@ MmWaveEnbPhy::StartSlot (void)
 
               m_allActiveSlotNums.push_back(m_slotNum);
               Simulator::Schedule (NanoSeconds (1), &MmWaveEnbPhy::SendDataChannels, this, pktBurst, slotPeriod - NanoSeconds (2.0), currSlot);
+            
+              // compute the number of wasted symbols
+              if (m_lastTxMap.find (layerInd) != m_lastTxMap.end () && // check if this is the first tx
+                  m_lastTxSubframe.at (layerInd) == m_sfNum && m_lastTxFrame.at (layerInd) == m_frameNum) // compute padding only inside subframes
+              {
+                Time wastedTime = Simulator::Now () - m_lastTxMap [layerInd];
+                uint8_t paddedSymbols = std::ceil (wastedTime.GetNanoSeconds () / (m_phyMacConfig->GetSymbolPeriod () * 1000));
+                
+                std::ofstream f; 
+                f.open ("padded-symbols.txt", std::ios::out | std::ios::app);
+                f << +m_frameNum << "\t" << +m_sfNum << "\t" << +layerInd << "\t" << +paddedSymbols << "\n";
+                f.close ();
+                NS_LOG_DEBUG ("Frame " << +m_sfNum << " Subframe " << +m_sfNum << 
+                               "  Layer " << + layerInd << " padded symbols " << +paddedSymbols << 
+                               " wastedTime " << wastedTime.GetNanoSeconds () << " symbPeriod " << m_phyMacConfig->GetSymbolPeriod ());
+              }
+              m_lastTxMap [layerInd] = Simulator::Now () + slotPeriod;
+              m_lastTxSubframe [layerInd] = m_sfNum;
+              m_lastTxFrame [layerInd] = m_frameNum;
             }
 
           if ( bfCasted != 0 )

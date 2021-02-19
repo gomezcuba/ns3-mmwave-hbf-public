@@ -234,6 +234,10 @@ private:
 
 
   TracedCallback< uint64_t, SpectrumValue&, SpectrumValue& > m_ulSinrTrace;
+  
+  std::map<uint8_t, Time> m_lastTxMap; 
+  std::map<uint8_t, uint8_t> m_lastTxSubframe;
+  std::map<uint16_t, uint8_t> m_lastTxFrame;
 };
 
 } // namespace mmwave
