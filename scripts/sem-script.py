@@ -7,7 +7,7 @@ sem.parallelrunner.MAX_PARALLEL_PROCESSES = 32
 
 script = 'mmwave-hbf'
 ns_path = '../ns3-mmwave-hbf'
-campaign_dir = "./campaign-2/"
+campaign_dir = "./campaign-load/"
 
 nruns = 20
 
@@ -133,8 +133,8 @@ udp_sched_comparison_multi_layer = {
 'useTCP' : False
 }
 
-campaign.run_missing_simulations(sem.list_param_combinations(bf_comparison_sigle_layer))
-campaign.run_missing_simulations(sem.list_param_combinations(bf_comparison_multi_layer))
+# campaign.run_missing_simulations(sem.list_param_combinations(bf_comparison_sigle_layer))
+# campaign.run_missing_simulations(sem.list_param_combinations(bf_comparison_multi_layer))
 campaign.run_missing_simulations(sem.list_param_combinations(tcp_sched_comparison_sigle_layer))
 campaign.run_missing_simulations(sem.list_param_combinations(tcp_sched_comparison_multi_layer))
 campaign.run_missing_simulations(sem.list_param_combinations(udp_sched_comparison_sigle_layer))
