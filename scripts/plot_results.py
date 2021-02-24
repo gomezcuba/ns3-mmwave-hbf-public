@@ -288,6 +288,27 @@ def get_carrier_load (campaign, params, num_layers):
         raise Exception ("Less than " + str (len (load)) + " results!")
         
     return (load.mean (), get_std_err (load))
+
+def get_padded_symbols (campaign, params):
+    numPaddedSym = np.full (len(campaign.db.get_results (params)), np.nan)
+    
+    index = 0
+    for r in campaign.db.get_results (params):
+        available_files = campaign.db.get_result_files (r)
+        
+        data = pd.read_csv (available_files ['padded-symbols.txt'], delimiter = "\t", index_col=False, usecols = [3], names = ['paddedSymbols'], 
+                            dtype = {'paddedSymbols' : 'int64'}, engine='python', header=0)
+        
+        for i in data ['paddedSymbols']:
+            if (i < 0 | i > 14):
+                print (str (i) + ' not valid')
+        numPaddedSym [index] = data ['paddedSymbols'].sum ()
+        index = index + 1
+    
+    if (index != len (numPaddedSym)):
+        print (params)
+        raise Exception ("Found " + str (index) + "results. Less than " + str (len (numPaddedSym)) + " results!")
+    return (numPaddedSym.mean (), get_std_err (numPaddedSym))
     
 def compute_ecdf (samples):
     # create x axis
@@ -1483,4 +1504,72 @@ def plot_carrier_load (campaign_dir, nruns, figure_folder):
                 fig_load.savefig (figure_folder + 'load_'+title+'.png', bbox_inches='tight')
                 plt.figure (fig_load.number)
                 tikzplotlib.save (figure_folder + 'load_'+title+'.tex')
-                plt.close (fig_load)           
+                plt.close (fig_load)   
+                
+def plot_padded_sym (campaign_dir, nruns, figure_folder):
+        
+    campaign = sem.CampaignManager.load(campaign_dir, runner_type = "ParallelRunner", check_repo = False)
+
+    harqList = [False, True]
+    ipiList = [150, 1500]
+    rlcAmList = [False, True]
+    sched = 'ns3::MmWavePaddedHbfMacScheduler'
+
+    for rlcAm in rlcAmList:
+        for harq in harqList:
+            
+            avg = np.full (len (ipiList), np.nan)
+            std = np.full (len (ipiList), np.nan) 
+            for ipi in ipiList:
+                
+                title = 'rlcAm=' + str(rlcAm) + "_harq=" + str (harq) + "_sched=" + str (sched)
+                
+                fig, ax = plt.subplots(1, 1)
+                fig.suptitle('PADDED SYM ' + title)
+                
+                # for sched in ['ns3::MmWaveFlexTtiMacScheduler', 'ns3::MmWavePaddedHbfMacScheduler']:    
+                # 
+                #     params = {
+                #     'RngRun' : list (range (nruns)),
+                #     'numEnb' : 1,
+                #     'numUe' : 7,
+                #     'simTime' : 1.2,
+                #     'interPacketInterval' : ipi,
+                #     'harq' : harq,
+                #     'rlcAm' : rlcAm,
+                #     'fixedTti' : False,
+                #     'sched' : sched,
+                #     'bfmod' : 'ns3::MmWaveDftBeamforming',
+                #     'nLayers' : 1,
+                #     'useTCP' : False
+                #     }
+                # 
+                #     (avg, std) = get_padded_symbols (campaign, params)
+                #     ax [0].bar (str (sched), avg, yerr=std)                
+                                         
+                    
+                params = {
+                'RngRun' : list (range (nruns)),
+                'numEnb' : 1,
+                'numUe' : 7,
+                'simTime' : 1.2,
+                'interPacketInterval' : ipi,
+                'harq' : harq,
+                'rlcAm' : rlcAm,
+                'fixedTti' : False,
+                'sched' : sched,
+                'bfmod' : 'ns3::MmWaveMMSESpectrumBeamforming',
+                'nLayers' : 4,
+                'useTCP' : False
+                }
+                
+                (avg [ipiList.index (ipi)], std [ipiList.index (ipi)]) = get_padded_symbols (campaign, params)
+            ax.bar ([str (150), str (1500)], avg, yerr=std)                
+            
+            fig.legend (loc='center right')
+            plt.xlabel ("IPI [us]")
+            plt.ylabel ("Padded symbols")
+            fig.savefig (figure_folder + 'paddedSym_'+title+'.png', bbox_inches='tight')
+            plt.figure (fig.number)
+            tikzplotlib.save (figure_folder + 'paddedSym_'+title+'.tex')
+            plt.close (fig)           
