@@ -267,7 +267,7 @@ def get_delay_data (campaign, params):
         
         return (delay_ul_data, delay_dl_data)
 
-def get_carrier_load (campaign, params, num_layers):
+def get_carrier_load (campaign, params):
     load = np.full (len(campaign.db.get_results (params)), np.nan)
     
     index = 0
@@ -276,12 +276,8 @@ def get_carrier_load (campaign, params, num_layers):
         
         data = pd.read_csv (available_files ['RxPacketTrace.txt'], delimiter = "\t", index_col=False, usecols = [0, 2, 5, 16], names = ['mode', 'frame', 'numSym', 'TxLayers'], 
                             dtype = {'mode' : 'object', 'frame' : 'int64', 'numSym' : 'int64', 'TxLayers' : 'int64'}, engine='python', header=0)
-        
-        avail_frames = data ['frame'].iloc[-1] - data['frame'].iloc[0]
-        # Modified NYU frame structure: 14 sym per subframe (2 are reserved for ctrl), 10 subframes in a frame
-        avail_sym = avail_frames*12*10*num_layers
         used_sym = data['numSym'].sum()
-        load [index] = used_sym / avail_sym
+        load [index] = used_sym
         index = index + 1
     
     if (index != len (load)):
@@ -300,7 +296,7 @@ def get_padded_symbols (campaign, params):
                             dtype = {'paddedSymbols' : 'int64'}, engine='python', header=0)
         
         for i in data ['paddedSymbols']:
-            if (i < 0 | i > 14):
+            if (i < 0 or i > 14):
                 print (str (i) + ' not valid')
         numPaddedSym [index] = data ['paddedSymbols'].sum ()
         index = index + 1
@@ -1506,69 +1502,85 @@ def plot_carrier_load (campaign_dir, nruns, figure_folder):
                 tikzplotlib.save (figure_folder + 'load_'+title+'.tex')
                 plt.close (fig_load)   
                 
-def plot_padded_sym (campaign_dir, nruns, figure_folder):
+def plot_padded_sym (campaign_dir, nruns, figure_folder, appTime, numUsers):
         
     campaign = sem.CampaignManager.load(campaign_dir, runner_type = "ParallelRunner", check_repo = False)
 
     harqList = [False, True]
     ipiList = [150, 1500]
     rlcAmList = [False, True]
-    sched = 'ns3::MmWavePaddedHbfMacScheduler'
+    schedList = ['ns3::MmWavePaddedHbfMacScheduler', "ns3::MmWaveAsyncHbfMacScheduler"]
+    numLayers = 4
 
     for rlcAm in rlcAmList:
         for harq in harqList:
             
-            avg = np.full (len (ipiList), np.nan)
-            std = np.full (len (ipiList), np.nan) 
-            for ipi in ipiList:
+            title = 'rlcAm=' + str(rlcAm) + "_harq=" + str (harq)
+            fig, ax = plt.subplots(1, len (schedList))
+            fig.suptitle('PADDED SYM ' + title)
+            for sched in schedList:
                 
-                title = 'rlcAm=' + str(rlcAm) + "_harq=" + str (harq) + "_sched=" + str (sched)
-                
-                fig, ax = plt.subplots(1, 1)
-                fig.suptitle('PADDED SYM ' + title)
-                
-                # for sched in ['ns3::MmWaveFlexTtiMacScheduler', 'ns3::MmWavePaddedHbfMacScheduler']:    
-                # 
-                #     params = {
-                #     'RngRun' : list (range (nruns)),
-                #     'numEnb' : 1,
-                #     'numUe' : 7,
-                #     'simTime' : 1.2,
-                #     'interPacketInterval' : ipi,
-                #     'harq' : harq,
-                #     'rlcAm' : rlcAm,
-                #     'fixedTti' : False,
-                #     'sched' : sched,
-                #     'bfmod' : 'ns3::MmWaveDftBeamforming',
-                #     'nLayers' : 1,
-                #     'useTCP' : False
-                #     }
-                # 
-                #     (avg, std) = get_padded_symbols (campaign, params)
-                #     ax [0].bar (str (sched), avg, yerr=std)                
-                                         
+                ax [schedList.index (sched)].set_title (str (sched))
+                paddedSym = np.full (len (ipiList), np.nan)
+                paddedSymStd = np.full (len (ipiList), np.nan) 
+                usedSym = np.full (len (ipiList), np.nan) 
+                usedSymStd = np.full (len (ipiList), np.nan)
+                for ipi in ipiList:
                     
-                params = {
-                'RngRun' : list (range (nruns)),
-                'numEnb' : 1,
-                'numUe' : 7,
-                'simTime' : 1.2,
-                'interPacketInterval' : ipi,
-                'harq' : harq,
-                'rlcAm' : rlcAm,
-                'fixedTti' : False,
-                'sched' : sched,
-                'bfmod' : 'ns3::MmWaveMMSESpectrumBeamforming',
-                'nLayers' : 4,
-                'useTCP' : False
-                }
-                
-                (avg [ipiList.index (ipi)], std [ipiList.index (ipi)]) = get_padded_symbols (campaign, params)
-            ax.bar ([str (150), str (1500)], avg, yerr=std)                
+                    
+                    
+                    # for sched in ['ns3::MmWaveFlexTtiMacScheduler', 'ns3::MmWavePaddedHbfMacScheduler']:    
+                    # 
+                    #     params = {
+                    #     'RngRun' : list (range (nruns)),
+                    #     'numEnb' : 1,
+                    #     'numUe' : 7,
+                    #     'simTime' : 1.2,
+                    #     'interPacketInterval' : ipi,
+                    #     'harq' : harq,
+                    #     'rlcAm' : rlcAm,
+                    #     'fixedTti' : False,
+                    #     'sched' : sched,
+                    #     'bfmod' : 'ns3::MmWaveDftBeamforming',
+                    #     'nLayers' : 1,
+                    #     'useTCP' : False
+                    #     }
+                    # 
+                    #     (avg, std) = get_padded_symbols (campaign, params)
+                    #     ax [0].bar (str (sched), avg, yerr=std)                
+                                             
+                        
+                    params = {
+                    'RngRun' : list (range (nruns)),
+                    'numEnb' : 1,
+                    'numUe' : 7,
+                    'simTime' : 1.2,
+                    'interPacketInterval' : ipi,
+                    'harq' : harq,
+                    'rlcAm' : rlcAm,
+                    'fixedTti' : False,
+                    'sched' : sched,
+                    'bfmod' : 'ns3::MmWaveMMSESpectrumBeamforming',
+                    'nLayers' : numLayers,
+                    'useTCP' : False
+                    }
+                    
+                    if (sched == "ns3::MmWavePaddedHbfMacScheduler"):
+                        (paddedSym [ipiList.index (ipi)], paddedSymStd [ipiList.index (ipi)]) = get_padded_symbols (campaign, params)
+                    else:
+                        (paddedSym [ipiList.index (ipi)], paddedSymStd [ipiList.index (ipi)]) = (0, 0)
+                    (usedSym [ipiList.index (ipi)], usedSymStd [[ipiList.index (ipi)]]) = get_carrier_load (campaign, params)
+                    # Modified NYU frame structure: 14 sym per subframe (2 are reserved for ctrl), subframe duration is 250us
+                    avail_subframes = appTime / 250e-6 
+                    avail_sym = avail_subframes * 12 * numLayers 
+                ax [schedList.index (sched)].bar ([str(x) for x in ipiList], usedSym / avail_sym)                
+                ax [schedList.index (sched)].bar ([str(x) for x in ipiList], paddedSym / avail_sym, 
+                                                  bottom = usedSym / avail_sym)       
+                ax [schedList.index (sched)].set_xlabel ("IPI [us]")
+                ax [schedList.index (sched)].set_ylabel ("Padded symbols")         
             
             fig.legend (loc='center right')
-            plt.xlabel ("IPI [us]")
-            plt.ylabel ("Padded symbols")
+            
             fig.savefig (figure_folder + 'paddedSym_'+title+'.png', bbox_inches='tight')
             plt.figure (fig.number)
             tikzplotlib.save (figure_folder + 'paddedSym_'+title+'.tex')

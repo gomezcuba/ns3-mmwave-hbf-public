@@ -15,4 +15,4 @@ appTime = 1.2 - 0.4 # simTime - startTime
 # pr.plot_carrier_load (campaign_dir=campaign_dir, nruns=20, figure_folder=campaign_dir + 'figures/sched-comparison/udp/')
 
 campaign_dir = 'campaign-load/'
-pr.plot_padded_sym (campaign_dir=campaign_dir, nruns=20, figure_folder=campaign_dir + 'figures/sched-comparison/udp/')
+pr.plot_padded_sym (campaign_dir=campaign_dir, nruns=20, figure_folder=campaign_dir + 'figures/sched-comparison/udp/', appTime=appTime, numUsers=7)
