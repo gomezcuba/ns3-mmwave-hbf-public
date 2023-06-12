@@ -62,7 +62,8 @@ def build(bld):
         #'model/mmwave-rlc.cc',
         #'model/mmwave-rlc-sap.cc'
         'model/mmwave-async-hbf-mac-scheduler.cc',
-        'model/mmwave-padded-hbf-mac-scheduler.cc'
+        'model/mmwave-padded-hbf-mac-scheduler.cc',
+        'model/mmwave-async-avoid-hbf-mac-scheduler.cc'
         ]
 
     module_test = bld.create_ns3_module_test_library('mmwave')
@@ -129,7 +130,8 @@ def build(bld):
         #'model/mmwave-rlc.h',
         #'model/mmwave-rlc-sap.h'
         'model/mmwave-async-hbf-mac-scheduler.h',
-        'model/mmwave-padded-hbf-mac-scheduler.h'
+        'model/mmwave-padded-hbf-mac-scheduler.h',
+        'model/mmwave-async-avoid-hbf-mac-scheduler.h'
         ]
 
     if bld.env.ENABLE_EXAMPLES:

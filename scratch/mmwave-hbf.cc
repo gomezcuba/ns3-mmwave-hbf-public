@@ -101,27 +101,28 @@ NS_LOG_COMPONENT_DEFINE ("EpcFirstExample");
 	int
 main (int argc, char *argv[])
 {
-	//LogComponentEnable ("LteUeRrc", LOG_LEVEL_ALL);
-	//LogComponentEnable ("LteEnbRrc", LOG_LEVEL_ALL);
-	//LogComponentEnable("MmWavePointToPointEpcHelper",LOG_LEVEL_ALL);
-	//LogComponentEnable("EpcUeNas",LOG_LEVEL_ALL);
-	// LogComponentEnable ("MmWaveSpectrumPhy", LOG_LEVEL_DEBUG);
+//	LogComponentEnable ("LteUeRrc", LOG_LEVEL_ALL);
+//	LogComponentEnable ("LteEnbRrc", LOG_LEVEL_ALL);
+//	LogComponentEnable("MmWavePointToPointEpcHelper",LOG_LEVEL_ALL);
+//	LogComponentEnable("EpcUeNas",LOG_LEVEL_ALL);
+//	LogComponentEnable ("MmWaveSpectrumPhy", LOG_LEVEL_DEBUG);
 //	LogComponentEnable ("MmWaveUePhy", LOG_LEVEL_INFO);
 //	LogComponentEnable ("MmWaveEnbPhy", LOG_LEVEL_INFO);
 //	LogComponentEnable ("MmWaveBeamformingModel", LOG_LEVEL_DEBUG);
-	//LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_LOGIC);
-	//LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-	//LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
-	// LogComponentEnable ("ThreeGppSpectrumPropagationLossModel", LOG_LEVEL_DEBUG);
-//	LogComponentEnable ("ThreeGppChannel", LOG_LEVEL_DEBUG);
-	//LogComponentEnable("PropagationLossModel",LOG_LEVEL_ALL);
-	//      LogComponentEnable ("MmwaveHbfSpectrumChannel", LOG_LEVEL_INFO);
-        // LogComponentEnable ("MmWavePaddedHbfMacScheduler", LOG_LEVEL_INFO);
-        // LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_INFO);
-        // LogComponentEnable ("MmWaveFlexTtiMacScheduler", LOG_LEVEL_INFO);
-//        LogComponentEnable ("MmWavePhy", LOG_LEVEL_INFO);
-//        LogComponentEnable ("MmWaveEnbMac", LOG_LEVEL_INFO);
-//        LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_INFO);
+//	LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_LOGIC);
+//	LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+//	LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
+//	LogComponentEnable ("ThreeGppSpectrumPropagationLossModel", LOG_LEVEL_DEBUG);
+//  LogComponentEnable ("ThreeGppChannel", LOG_LEVEL_DEBUG);
+//	LogComponentEnable("PropagationLossModel",LOG_LEVEL_ALL);
+//    LogComponentEnable ("MmwaveHbfSpectrumChannel", LOG_LEVEL_INFO);
+//    LogComponentEnable ("MmWavePaddedHbfMacScheduler", LOG_LEVEL_INFO);
+//    LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_INFO);
+//    LogComponentEnable ("MmWaveFlexTtiMacScheduler", LOG_LEVEL_INFO);
+    LogComponentEnable ("MmWaveInterAvoidHbfMacScheduler", LOG_LEVEL_LOGIC);
+    LogComponentEnable ("MmWavePhy", LOG_LEVEL_INFO);
+//    LogComponentEnable ("MmWaveEnbMac", LOG_LEVEL_INFO);
+//    LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_INFO);
 
 	uint16_t numEnb = 1;
 	uint16_t numUe = 7;
@@ -140,8 +141,9 @@ main (int argc, char *argv[])
 
 	std::string schedulerType =
 //	    "ns3::MmWaveFlexTtiMacScheduler"
-	    "ns3::MmWaveAsyncHbfMacScheduler"
+//	    "ns3::MmWaveAsyncHbfMacScheduler"
 //	    "ns3::MmWavePaddedHbfMacScheduler"
+	    "ns3::MmWaveInterAvoidHbfMacScheduler" //(Este es el mío)
 	    ;
 	std::string beamformerType =
 //	    "ns3::MmWaveDftBeamforming"
