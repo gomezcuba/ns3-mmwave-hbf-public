@@ -1291,41 +1291,33 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
 		  }
 	  }
 
-	  /*--------------------------------------------------Algoritmo Máxima Interferencia First --------------------------------------------------*/
+	  /*--------------------------------------------------ALGORITMO INTERFERENCIA --------------------------------------------------*/
 
       int divUeAssign = static_cast<int>(std::ceil(static_cast<double>((int) ueInfo.size()) / (int) numDlUeLayer.size()));
       int size = ueInfo.size();
 	  bool allUeAssigned = false;
-	  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (1, 1));
-	  int auxLayer = 2;
+	  int auxLayer = 1;
 	  std::map<int, float> minNumeroMap; 					// MAPA AUXILIAR
+	  std::map<int, float>::iterator itMinNumeroMap;		// ITERADOR AUXILIAR PARA RECORRER MAPA
 
-	  for (int j = 1; j < (int) ueInfo.size(); j++) 		// Nos saltamos 1er término de la matriz = Interferencia de UE1 consigo mismo
+	  for (int j = 0; j < (int) ueInfo.size(); j++)
 	  {
 		  minNumeroMap[j+1] = InterferenceTable[0][j]; 		//LLENAMOS EL MAPA CON LA INTERFERENCIA CON EL UE1 (FILA 0 DE LA MATRIZ)
 	  }
-	  if (divUeAssign == 1)							//SI HAY 4 O MENOS UES EN TOTAL
+	  if (divUeAssign == 1)
 	  {
-
-		  for (const auto& element : minNumeroMap) { 			//PARA LOS 3 ELEMENTOS CON MENOS INT. CON UE1 INICIALIZAMOS TODOS LOS LAYERS
-			  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (element.first, auxLayer));
+		  for (itMinNumeroMap = minNumeroMap.begin(); itMinNumeroMap != minNumeroMap.end(); itMinNumeroMap++)
+		  {
+			  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (itMinNumeroMap->first, auxLayer));
 			  auxLayer++;
 		  }
 		  allUeAssigned = true;
 	  }
-	  else if (divUeAssign == 2)							// DE 5 A 8 UEs
+	  else if (divUeAssign == 2)¡
 	  {
-		  auto maxElementIt = std::max_element(minNumeroMap.begin(), minNumeroMap.end(),
-				  [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
-		              return a.second < b.second;});
-
-		    if (maxElementIt != minNumeroMap.end()) {
-		    	ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (maxElementIt->first, 1));	//Usuario con mayor interferencia con el UE 1 del layer 1
-		    	size -= 5;
-		    }
-		    while (size > 0)
+		    while (size > 4)
 		    {
-		    	float maxInt = 0.0;
+		    	float maxInt = -1.0;
 		    	int ue = -1;
 		    	int ue2 = -1;
 		    	for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
@@ -1355,6 +1347,7 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
 				if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
 				{
 					ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (itUeInfo->first, auxLayer));
+					auxLayer ++;
 				}
 		    }
 		    allUeAssigned = true;
