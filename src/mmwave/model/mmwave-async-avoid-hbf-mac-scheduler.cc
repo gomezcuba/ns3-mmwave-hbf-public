@@ -1279,109 +1279,137 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
       std::vector<int> totDlSymReqLayer ( nextSymAvailLayer.size (), 0); //numLayer zeros vector initialization
       std::vector<int> totUlSymReqLayer ( lastSymAvailLayer.size (), 0);
 
-      int size = ueInfo.size();
-      //int ueNumberLayerSize = round(sqrt((int)ueInfo.size()));  // Calculamos el número de grupos que habrá dependiendo de ueInfo.size();
+	  /*--------------------------------------------------MATRIZ DE INTERFERENCIA ALEATORIA --------------------------------------------------*/
 
-	  std::vector<std::vector<float>> InterferenceTable(size, std::vector<float>(ueInfo.size(), 0.0));
-
-
-	  for (int A = 0; A < size; A++) {								// MATRIZ DE INTERFERENCIA ALEATORIA
-		  for (int B = A + 1; B < size; B++) {
+      std::vector<std::vector<float>> InterferenceTable(ueInfo.size(), std::vector<float>(ueInfo.size(), 0.0));
+	  for (int A = 0; A < (int) ueInfo.size(); A++) {
+		  for (int B = A + 1; B < (int) ueInfo.size(); B++) {
 			  float random = static_cast<float>(rand()) / RAND_MAX;
 			  float randomRounded = std::round(random * 10) / 10;
 			  InterferenceTable[B][A] = InterferenceTable[A][B] = randomRounded;
-			  NS_LOG_LOGIC("Interferencia[" << B << "][" << A << "] = " << InterferenceTable[B][A]);
+			  NS_LOG_LOGIC("Interferencia[" << B + 1 << "][" << A + 1 << "] = " << InterferenceTable[B][A]);
 		  }
 	  }
 
-	  /*--------------------------------------------------Algoritmo Máxima Interferencia First --------------------------------------------------*/
+	  /*--------------------------------------------------ALGORITMO INTERFERENCIA --------------------------------------------------*/
 
-      NS_LOG_INFO("EL NÚMERO DE USUARIOS QUE VAMOS A ASIGNAR ES: " << (int) ueInfo.size () << " .");
+      int divUeAssign = static_cast<int>(std::ceil(static_cast<double>((int) ueInfo.size()) / (int) numDlUeLayer.size()));
+      int size = ueInfo.size();
 	  bool allUeAssigned = false;
-	  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (1, 1));
-	  int auxLayer = 2;
+	  int auxLayer = 1;
 	  std::map<int, float> minNumeroMap; 					// MAPA AUXILIAR
-	  for (int j = 1; j < size; j++) // Nos saltamos el primer término de la matriz por ser interferencia del primer usuario consigo mismo
+	  std::map<int, float>::iterator itMinNumeroMap;		// ITERADOR AUXILIAR PARA RECORRER MAPA
+
+	  for (int j = 0; j < (int) ueInfo.size(); j++)
 	  {
 		  minNumeroMap[j+1] = InterferenceTable[0][j]; 		//LLENAMOS EL MAPA CON LA INTERFERENCIA CON EL UE1 (FILA 0 DE LA MATRIZ)
 	  }
-	  if (minNumeroMap.size() < 4)							//SI HAY 3 UES O MENOS NO NECESITAREMOS MÁS ASIGNACIÓN QUE ESTA
+	  if (divUeAssign == 1)
 	  {
+		  for (itMinNumeroMap = minNumeroMap.begin(); itMinNumeroMap != minNumeroMap.end(); itMinNumeroMap++)
+		  {
+			  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (itMinNumeroMap->first, auxLayer));
+			  auxLayer++;
+		  }
 		  allUeAssigned = true;
 	  }
-	  while(minNumeroMap.size() > 3) 						//REDUCIMOS VECTOR HASTA QUE TENGA 3 ELEMENTOS DE INT. MÍNIMA CON UE1
+	  else if (divUeAssign == 2)¡
 	  {
-		  auto maxElementIt = std::max_element(minNumeroMap.begin(), minNumeroMap.end(),
-				  [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
-		              return a.second < b.second;
-		          });
-	      if (maxElementIt != minNumeroMap.end()) {
-	    	  minNumeroMap.erase(maxElementIt);
-	      }
-	  }											//EN ESTE PUNTO TENEMOS UN MAPA DE 3 ELEMENTOS O MENOS CON LAS MÍNIMAS INTERFERENCIAS CON UE1
-	  for (const auto& element : minNumeroMap) { 			//PARA LOS 3 ELEMENTOS CON MENOS INT. CON UE1 INICIALIZAMOS TODOS LOS LAYERS
-		  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (element.first, auxLayer));
-		  auxLayer++;
+		    while (size > 4)
+		    {
+		    	float maxInt = -1.0;
+		    	int ue = -1;
+		    	int ue2 = -1;
+		    	for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
+		    	{
+					if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
+					{
+						for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
+						{
+							if (ueToLayerMapDl.find(itUeInfo2->first) == ueToLayerMapDl.end())
+							{
+								if(InterferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1] > maxInt){
+									maxInt = InterferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1];
+									ue = itUeInfo->first;
+									ue2 = itUeInfo2->first;
+								}
+							}
+						}
+					}
+		    	}
+		    	ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ue, auxLayer));
+		    	ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ue2, auxLayer));
+		    	size --;
+		    	auxLayer ++;
+		    }
+		    for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
+		    {
+				if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
+				{
+					ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (itUeInfo->first, auxLayer));
+					auxLayer ++;
+				}
+		    }
+		    allUeAssigned = true;
 	  }
-	  for (const auto& pair : ueToLayerMapDl) {
-	          std::cout << "UE: " << pair.first << ", Layer: " << (int) pair.second << std::endl;
-	  }
-	  //return; // PARA PROBAS
-	  int ueIntNum = ueInfo.size() + 1;
-	  int layIntNum = numDlUeLayer.size();
-	  while (!allUeAssigned)
-	  {
-		  std::vector<std::vector<float>> accumulatedInterference(ueIntNum, std::vector<float>(layIntNum, 0.0));
-		  float maxInt = 0.0;
-		  int layerMax = -1;
-		  int ueMax = -1;
-		  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
+	  else if (divUeAssign > 2) {
+		  /*----------------------------------EMPIEZA MÉTODO MAX INTERFERENCIA----------------------------------*/
+		  int ueIntNum = ueInfo.size() + 1;
+		  int layIntNum = numDlUeLayer.size();
+		  while (!allUeAssigned)
 		  {
-			  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
+			  std::vector<std::vector<float>> accumulatedInterference(ueIntNum, std::vector<float>(layIntNum, 0.0));
+			  float maxInt = 0.0;
+			  int layerMax = -1;
+			  int ueMax = -1;
+			  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
 			  {
-				  bool sumaRealizada = false;
-				  for (itUeToLayerMap = ueToLayerMapDl.begin (); itUeToLayerMap != ueToLayerMapDl.end (); itUeToLayerMap++)
+				  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
 				  {
-					  if(!sumaRealizada)
+					  bool sumaRealizada = false;
+					  for (itUeToLayerMap = ueToLayerMapDl.begin (); itUeToLayerMap != ueToLayerMapDl.end (); itUeToLayerMap++)
 					  {
-						  for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
+						  if(!sumaRealizada)
 						  {
-							  if (ueToLayerMapDl.find(itUeInfo2->first) != ueToLayerMapDl.end())
+							  for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
 							  {
-								  accumulatedInterference[itUeInfo->first][itUeToLayerMap->second] +=
-								InterferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1];
-								  sumaRealizada = true;
+								  if (ueToLayerMapDl.find(itUeInfo2->first) != ueToLayerMapDl.end())
+								  {
+									  accumulatedInterference[itUeInfo->first][itUeToLayerMap->second] +=
+									InterferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1];
+									  sumaRealizada = true;
+								  }
 							  }
 						  }
-					  }
 
-					  /*NS_LOG_LOGIC("accumulatedInterference[" << itUeInfo->first << "][" << (int)itUeToLayerMap->second << "] = "
-												  << accumulatedInterference[itUeInfo->first][itUeToLayerMap->second]);*/
+						  /*NS_LOG_LOGIC("accumulatedInterference[" << itUeInfo->first << "][" << (int)itUeToLayerMap->second << "] = "
+													  << accumulatedInterference[itUeInfo->first][itUeToLayerMap->second]);*/
 
-					  if (accumulatedInterference[itUeInfo->first][itUeToLayerMap->second] > maxInt)
-					  {
-							maxInt = accumulatedInterference[itUeInfo->first][itUeToLayerMap->second];
-							layerMax = itUeToLayerMap->second;
-							ueMax = itUeInfo->first;
+						  if (accumulatedInterference[itUeInfo->first][itUeToLayerMap->second] > maxInt)
+						  {
+								maxInt = accumulatedInterference[itUeInfo->first][itUeToLayerMap->second];
+								layerMax = itUeToLayerMap->second;
+								ueMax = itUeInfo->first;
+						  }
 					  }
 				  }
 			  }
-		  }
-		  NS_LOG_LOGIC(" el layer con más interferencia es: " << layerMax
-				  << " el usuario con más interferencia es: " << ueMax << " numero layer: " << ueToLayerMapDl.size());
+			  NS_LOG_LOGIC(" el layer con más interferencia es: " << layerMax
+					  << " el usuario con más interferencia es: " << ueMax << " numero layer: " << ueToLayerMapDl.size());
 
-		  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ueMax, layerMax));
-		  /*itUeInfo->second.m_dlHbfLayer = layerMax;
-		  totDlSymReqLayer[layerMax] += itUeInfo->second.m_maxDlSymbols;
-		  numDlUeLayer[layerMax]++;
-    	  */
+			  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ueMax, layerMax));
+			  /*itUeInfo->second.m_dlHbfLayer = layerMax;
+			  totDlSymReqLayer[layerMax] += itUeInfo->second.m_maxDlSymbols;
+			  numDlUeLayer[layerMax]++;
+			  */
 
-		  allUeAssigned=true;
-		  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
-		  {
-			  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end()) 	//Si al menos un usuario que no cumple esto -> se sigue el while
+			  allUeAssigned=true;
+			  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
 			  {
-				  allUeAssigned=false;
+				  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end()) 	//Si al menos un usuario que no cumple esto -> se sigue el while
+				  {
+					  allUeAssigned=false;
+				  }
 			  }
 		  }
 	  }
