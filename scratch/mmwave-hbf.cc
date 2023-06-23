@@ -117,21 +117,21 @@ main (int argc, char *argv[])
 //	LogComponentEnable("PropagationLossModel",LOG_LEVEL_ALL);
 //    LogComponentEnable ("MmwaveHbfSpectrumChannel", LOG_LEVEL_INFO);
 //    LogComponentEnable ("MmWavePaddedHbfMacScheduler", LOG_LEVEL_INFO);
-//    LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_INFO);
+    LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_INFO);
 //    LogComponentEnable ("MmWaveFlexTtiMacScheduler", LOG_LEVEL_INFO);
     LogComponentEnable ("MmWaveInterAvoidHbfMacScheduler", LOG_LEVEL_LOGIC);
-    LogComponentEnable ("MmWavePhy", LOG_LEVEL_INFO);
+    LogComponentEnable ("MmWavePhy", LOG_LEVEL_DEBUG);
 //    LogComponentEnable ("MmWaveEnbMac", LOG_LEVEL_INFO);
 //    LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_INFO);
 
 	uint16_t numEnb = 1;
 	uint16_t numUe = 7;
 	uint16_t numEnbLayers = 4;
-	double startTime = 0.4;
-        double simTime = 1.2;
+	double startTime = 0.02;
+        double simTime = .4;
 	double packetSize = 1460; // packet size in byte
 	double interPacketInterval = 5000; // 500 microseconds
-	bool harqEnabled = true;
+	bool harqEnabled = false;
 	bool rlcAmEnabled = false;
 	//bool useIdealRrc = true;
 	bool fixedTti = false;
@@ -148,8 +148,8 @@ main (int argc, char *argv[])
 	std::string beamformerType =
 //	    "ns3::MmWaveDftBeamforming"
 //	    "ns3::MmWaveFFTCodebookBeamforming"
-//            "ns3::MmWaveMMSEBeamforming"
-	    "ns3::MmWaveMMSESpectrumBeamforming"
+            "ns3::MmWaveMMSEBeamforming"
+//	    "ns3::MmWaveMMSESpectrumBeamforming"
 	    ;
 
 	// Command line arguments

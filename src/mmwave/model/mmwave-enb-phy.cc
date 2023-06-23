@@ -1455,6 +1455,7 @@ MmWaveEnbPhy::StartSlot (void)
 
               for (uint8_t i = 0; i < m_deviceMap.size (); i++)
                 {
+                  //TODO take advantage of m_ueAttachedImsiMap as IMSI = RNTI
                   Ptr<mmwave::MmWaveUeNetDevice> ueDev = m_deviceMap.at (i)->GetObject<mmwave::MmWaveUeNetDevice> ();
                   if (currSlot.m_dci.m_rnti == ueDev->GetPhy ()->GetRnti ())
                     {
