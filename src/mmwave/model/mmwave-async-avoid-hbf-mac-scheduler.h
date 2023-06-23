@@ -209,6 +209,12 @@ private:
    */
   void RefreshHarqProcesses ();
 
+  /**
+   * \brief Get the table of interferences for a set of users
+   *
+   */
+  std::vector<std::vector<float>> GetInterferenceTable (std::map <uint16_t, struct UeSchedInfo> ueInfo);
+
   TddSlotTypeList m_tddMap;
 
   Ptr<MmWaveAmc> m_amc;

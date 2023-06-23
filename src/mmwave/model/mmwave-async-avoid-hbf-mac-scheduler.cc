@@ -1349,7 +1349,6 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
 
       int divUeAssign = static_cast<int>(std::ceil(static_cast<double>((int) ueInfo.size()) / (int) numDlUeLayer.size()));
       int size = ueInfo.size();
-
       bool allUeAssigned = false;
       int auxLayer = 0;
       std::map<int, float> minNumeroMap; 					// MAPA AUXILIAR
@@ -1360,25 +1359,29 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
           minNumeroMap[j+1] = interferenceTable[0][j]; 		//LLENAMOS EL MAPA CON LA INTERFERENCIA CON EL UE1 (FILA 0 DE LA MATRIZ)
         }
 
-      if (divUeAssign == 1)
-        {
-          for (itMinNumeroMap = minNumeroMap.begin(); itMinNumeroMap != minNumeroMap.end(); itMinNumeroMap++)
-            {
-              ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (itMinNumeroMap->first, auxLayer));
-              auxLayer++;
-            }
-          allUeAssigned = true;
-        }
+	  if (divUeAssign == 1)
+	  {
+		  for (itMinNumeroMap = minNumeroMap.begin(); itMinNumeroMap != minNumeroMap.end(); itMinNumeroMap++)
+		  {
+			  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (itMinNumeroMap->first, auxLayer));
+			  numDlUeLayer[auxLayer]++;
+			  auxLayer++;
+		  }
+		  allUeAssigned = true;
+	  }
+
       else if (divUeAssign == 2)
         {
           NS_LOG_LOGIC(" size =  "<<size<< " aux " <<auxLayer);
           while (size > 4)
             {
+
               float maxInt = -1.0;
               int ue = -1;
               int ue2 = -1;
               int ctrUeInfo1 = 0;
               int ctrUeInfo2 = 0;
+
               for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
                 {
                   if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
@@ -1398,14 +1401,16 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
                     }
                   ctrUeInfo1 ++ ;
                 }
+
               NS_LOG_LOGIC(" el par con más interferencia es: (" << ue << "," << ue2 << ") para layer " << auxLayer);
               ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ue, auxLayer));
               ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ue2, auxLayer));
               size --;
-              size --;
+              numDlUeLayer[auxLayer] += 2;
               auxLayer ++;
               NS_LOG_LOGIC(" size =  "<<size<< " aux " <<auxLayer);
             }
+
           for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
             {
               if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
@@ -1416,74 +1421,107 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
             }
           allUeAssigned = true;
         }
-      else if (divUeAssign > 2) {
-          /*----------------------------------EMPIEZA MÉTODO MAX INTERFERENCIA----------------------------------*/
-          int ueIntNum = ueInfo.size() + 1;
-          int layIntNum = numDlUeLayer.size();
-          while (!allUeAssigned)
-            {
-              std::vector<std::vector<float>> accumulatedInterference(ueIntNum, std::vector<float>(layIntNum, 0.0));
-              float maxInt = 0.0;
-              int layerMax = -1;
-              int ueMax = -1;
-              for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
-                {
-                  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
-                    {
-                      bool sumaRealizada = false;
-                      for (itUeToLayerMap = ueToLayerMapDl.begin (); itUeToLayerMap != ueToLayerMapDl.end (); itUeToLayerMap++)
-                        {
-                          if(!sumaRealizada)
-                            {
-                              for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
-                                {
-                                  if (ueToLayerMapDl.find(itUeInfo2->first) != ueToLayerMapDl.end())
-                                    {
-                                      accumulatedInterference[itUeInfo->first][itUeToLayerMap->second] +=
-                                          interferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1];
-                                      sumaRealizada = true;
-                                    }
-                                }
-                            }
 
-                          /*NS_LOG_LOGIC("accumulatedInterference[" << itUeInfo->first << "][" << (int)itUeToLayerMap->second << "] = "
-													  << accumulatedInterference[itUeInfo->first][itUeToLayerMap->second]);*/
-
-                          if (accumulatedInterference[itUeInfo->first][itUeToLayerMap->second] > maxInt)
-                            {
-                              maxInt = accumulatedInterference[itUeInfo->first][itUeToLayerMap->second];
-                              layerMax = itUeToLayerMap->second;
-                              ueMax = itUeInfo->first;
-                            }
-                        }
-                    }
-                }
-              NS_LOG_LOGIC(" el layer con más interferencia es: " << layerMax
-                           << " el usuario con más interferencia es: " << ueMax << " numero layer: " << ueToLayerMapDl.size());
-
-              ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ueMax, layerMax));
-              /*itUeInfo->second.m_dlHbfLayer = layerMax;
-			  totDlSymReqLayer[layerMax] += itUeInfo->second.m_maxDlSymbols;
+	  else if (divUeAssign > 2) {
+		  /*----------------------------------EMPIEZA MÉTODO MAX INTERFERENCIA----------------------------------*/
+		  bool paresAssigned = false;
+		  int op = 4;
+		  while (!allUeAssigned)
+		  {
+			  int layerMax = -1;
+			  int ueMax = -1;
+			  double maxInt = -1.0;
+			  while (!paresAssigned)
+			  {
+				  float maxIntPares = -1.0;
+				  int ue = -1;
+				  int ue2 = -1;
+				  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
+				  {
+					  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
+					  {
+						  for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
+						  {
+							  if (ueToLayerMapDl.find(itUeInfo2->first) == ueToLayerMapDl.end())
+							  {
+								  if(interferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1] > maxIntPares){
+									  maxIntPares = interferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1];
+									  ue = itUeInfo->first;
+									  ue2 = itUeInfo2->first;
+								  }
+							  }
+						  }
+					  }
+				  }
+				  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ue, auxLayer));
+				  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ue2, auxLayer));
+				  auxLayer ++;
+				  op --;
+				  if(op == 0)
+				  {
+					  paresAssigned = true;
+					  maxInt = -1.0;
+					  ue = -1;
+				  }
+			  }
+			  for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
+			  {
+				    if (ueToLayerMapDl.find(itUeInfo2->first) != ueToLayerMapDl.end())
+				    {
+				        int layer = ueToLayerMapDl[itUeInfo2->first]; // Obtener el valor del layer del mapa
+				        itUeInfo2->second.m_dlHbfLayer = layer; // Asignar el valor del layer al usuario del iterador
+				    }
+			  }
+			  std::set<int> processedLayers;
+			  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
+			  {
+				  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end())
+				  {
+					  for (itUeToLayerMap = ueToLayerMapDl.begin (); itUeToLayerMap != ueToLayerMapDl.end (); itUeToLayerMap++)
+					  {
+						  int currentLayer = itUeToLayerMap->second;
+						  if (processedLayers.find(currentLayer) == processedLayers.end())
+						  {
+							  std::vector<std::vector<float>> accumulatedInterference((int) ueInfo.size() + 1, std::vector<float>((int) numDlUeLayer.size(), 0.0));
+							  for (itUeInfo2 = ueInfo.begin (); itUeInfo2 != ueInfo.end (); itUeInfo2++)
+							  {
+								  if (itUeInfo2->second.m_dlHbfLayer == currentLayer)
+								  {
+									  accumulatedInterference[itUeInfo->first][currentLayer] +=
+											  interferenceTable[itUeInfo->first - 1][itUeInfo2->first - 1];
+								  }
+							  }
+							  if (accumulatedInterference[itUeInfo->first][currentLayer] > maxInt)
+							  {
+									maxInt = accumulatedInterference[itUeInfo->first][currentLayer];
+									layerMax = currentLayer;
+									ueMax = itUeInfo->first;
+							  }
+							  processedLayers.insert(currentLayer);
+						  }
+					  }
+				  }
+			  }
+			  ueToLayerMapDl.insert (std::pair<uint32_t, uint8_t> (ueMax, layerMax));
 			  numDlUeLayer[layerMax]++;
-               */
 
-              allUeAssigned=true;
-              for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
-                {
-                  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end()) 	//Si al menos un usuario que no cumple esto -> se sigue el while
-                    {
-                      allUeAssigned=false;
-                    }
-                }
-            }
-      }
-      for (const auto& mapa : ueToLayerMapDl)
-        {
-          NS_LOG_LOGIC( "UE: " << mapa.first << ", Layer: " << (int) mapa.second );
-        }
-//      return;		// PARA PROBAS
+			  allUeAssigned=true;
+			  for (itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++)
+			  {
+				  if (ueToLayerMapDl.find(itUeInfo->first) == ueToLayerMapDl.end()) 	//Si al menos un usuario que no cumple esto -> se sigue el while
+				  {
+					  allUeAssigned=false;
+				  }
+			  }
+		  }
+	  }
+	  for (const auto& mapa : ueToLayerMapDl)
+	  {
+	          std::cout << "UE: " << mapa.first << ", Layer: " << (int) mapa.second << std::endl;
+	  }
+	  //return;		// PARA PROBAS
 
-      /*--------------------------------------------------PROBAS ATA ESTE PUNTO --------------------------------------------------*/
+	  /*--------------------------------------------------PROBAS ATA ESTE PUNTO --------------------------------------------------*/
 
       for (itUeToLayerMap = ueToLayerMapDl.begin (); itUeToLayerMap != ueToLayerMapDl.end (); itUeToLayerMap++)
         {
