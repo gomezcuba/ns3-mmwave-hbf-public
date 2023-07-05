@@ -575,6 +575,107 @@ MmWaveFFTCodebookBeamforming::DoDesignBeamformingVectorForDevice (Ptr<NetDevice>
 }
 
 
+std::vector< Ptr<CodebookBFVectorCacheEntry>>
+MmWaveFFTCodebookBeamforming::GetBfCachesInSlotBundle(std::vector< Ptr<NetDevice> > vOtherDevs)
+{
+  std::vector< Ptr<CodebookBFVectorCacheEntry>> bfCachesInSlot;
+  std::set< uint16_t > txBeamsCollection;
+  for (std::vector< Ptr<NetDevice> >::iterator itDev = vOtherDevs.begin() ; itDev != vOtherDevs.end() ; itDev++ )
+    {//retrieve the analog BF cache items, while making sure that the analog BF part is up to date
+      bool update = false;
+      bool notFound = false;
+      uint32_t beamKey = GetKey(m_mobility->GetObject<Node> ()->GetId (), (*itDev )->GetNode ()->GetId ());
+      std::map< uint32_t, Ptr<BFVectorCacheEntry> >::iterator itVectorCache = m_vectorCache.find(beamKey);
+      Ptr<CodebookBFVectorCacheEntry> bCacheEntry;
+      if ( itVectorCache != m_vectorCache.end() )
+        {
+          NS_LOG_DEBUG ("MMSE retrieved a beam from the map");
+          bCacheEntry = DynamicCast<CodebookBFVectorCacheEntry>(itVectorCache->second);
+          update = CheckBfCacheExpiration( (*itDev ),  bCacheEntry);
+        }
+      else
+        {
+          notFound = true;
+        }
+      if ( notFound | update ){
+          NS_LOG_DEBUG ("MMSE could not retreive beam from map or it has expired, generating new analog beam");
+          DoDesignBeamformingVectorForDevice ( (*itDev ) ); //we do not use the output value directly in this call
+          bCacheEntry=DynamicCast<CodebookBFVectorCacheEntry>( m_vectorCache[beamKey] );
+      }
+      if (txBeamsCollection.find(bCacheEntry->txBeamInd)!=txBeamsCollection.end())
+        {//if two users employ the same tx beam we have a matrix rank problem and the SINR suffers a lot, hence we adopt an alternative second-best beam
+          //TODO this conflict resolution is greedy, we can design better conflict resolution by going back and trying to substitute ALL repeated beams.
+          Ptr<CodebookBFVectorCacheEntry> auxBfRecord = Create<CodebookBFVectorCacheEntry> (); //we must create a temporary single-use copy of the bfCache struct
+          auxBfRecord->rxBeamInd = bCacheEntry->rxBeamInd;
+          auxBfRecord->m_equivalentChanCoefs = bCacheEntry->m_equivalentChanCoefs;
+          complex2DVector_t oneColumnAuxChan;
+          oneColumnAuxChan.push_back(auxBfRecord->m_equivalentChanCoefs.at(auxBfRecord->rxBeamInd));//this auxiliary vector reduces the following lookup dimensions in rx side
+          std::pair<uint16_t,uint16_t> bfPairSelection = bfGainLookup(oneColumnAuxChan,txBeamsCollection);
+          //the first component of this pair is actually garbage (always 1) because we used the oneColumnAuxChan variable in the function call
+          uint16_t altBeam = bfPairSelection.second;
+          uint16_t antennaNum [2];
+          antennaNum[0] = m_antenna->GetAntennaNumDim1 ();
+          antennaNum[1] = m_antenna->GetAntennaNumDim2 ();
+          auxBfRecord->txBeamInd=altBeam;
+          auxBfRecord->m_beamId=altBeam;//the analog beam ID is the txBeamInd
+          auxBfRecord->m_antennaWeights=bfVector2DFFT(altBeam,antennaNum);
+          bfCachesInSlot.push_back( auxBfRecord );
+          txBeamsCollection.insert(auxBfRecord->txBeamInd);
+          NS_LOG_DEBUG("MMSE BF beam conflict, node " << m_mobility->GetObject<Node> ()->GetId ()<< " pointing at node " << (*itDev )->GetNode ()->GetId () <<
+                       " may not use beamID " << bCacheEntry->txBeamInd << " fall back to beamID " << auxBfRecord->txBeamInd <<
+                       " BFgain penalty 1/"<< std::norm(auxBfRecord->m_equivalentChanCoefs.at(auxBfRecord->rxBeamInd).at(bCacheEntry->txBeamInd)) / std::norm(auxBfRecord->m_equivalentChanCoefs.at(auxBfRecord->rxBeamInd).at(auxBfRecord->txBeamInd))
+          );
+        }
+      else
+        {
+          bfCachesInSlot.push_back( bCacheEntry );
+          txBeamsCollection.insert(bCacheEntry->txBeamInd);
+        }
+    }
+
+  return(bfCachesInSlot);
+}
+
+complex2DVector_t
+MmWaveFFTCodebookBeamforming::getChanHMatrix( std::vector< Ptr<NetDevice> > vOtherDevs )
+{
+  //this segment builds a list of all Nb analog beams in use in this slot
+  std::vector< Ptr<CodebookBFVectorCacheEntry>> bfCachesInSlot = GetBfCachesInSlotBundle(vOtherDevs);
+
+  NS_LOG_LOGIC("Started MMSE slot bundle processing. Detected " << bfCachesInSlot.size() << " simultaneous analog beams");
+
+  //this segment builds and equivalent channel Nb x Nb matrix with coefficients Heq_{i,j} = wa_i^H H_j^h b_j g_j
+  // wa_i are my analog beamforming vectors, 1 x Nant, hermitian when we are receiving
+  // H_j is the physical array MIMO channel towards device j, Nant x Nant2
+  // b_j is the transmit beamforming of device j, size Nant_of_j x 1
+  // g_j is the pathloss gain towards device j
+  //  the diagonal Heq[ii,ii] is the complex gain for beam ii,
+  //  and Heq[ii][jj] is the side-lobe cross-interference between beam ii-receiver and beam jj-transmitter
+  //  this matrix coefficients are obtained as the conjugates of the matrix stored in the analog beam design, which was implemented in transmission mode
+  complex2DVector_t equivalentH;
+  double propagationGainAmplitude = 0;
+  std::stringstream matrixline;
+  matrixline << "[";
+  for (std::vector< Ptr<CodebookBFVectorCacheEntry>>::iterator itBfThisDev = bfCachesInSlot.begin() ; itBfThisDev != bfCachesInSlot.end() ; itBfThisDev++ )
+    {
+      complexVector_t rowEquivalentH;
+      std::vector< Ptr<NetDevice> >::iterator itOtherDev = vOtherDevs.begin();
+      for (std::vector< Ptr<CodebookBFVectorCacheEntry>>::iterator itBfOtherDev = bfCachesInSlot.begin() ; itBfOtherDev != bfCachesInSlot.end() ; itBfOtherDev++ )
+        {
+          propagationGainAmplitude = sqrt( pow( 10.0, 0.1 * m_propagationLossModel->CalcRxPower (0, m_mobility, (*itOtherDev)->GetNode ()->GetObject<MobilityModel> ()) ) );
+          rowEquivalentH.push_back( ( propagationGainAmplitude * (*itBfOtherDev)->m_equivalentChanCoefs.at( (*itBfOtherDev)->rxBeamInd ).at( (*itBfThisDev)->txBeamInd ) ) );//w[it2,i]H[it2,i]v[it,i] where i=this node
+          matrixline << (itBfOtherDev == bfCachesInSlot.begin() ? "" : ",") << std::real(rowEquivalentH.back())<< "+1i*"<<std::imag(rowEquivalentH.back());
+          itOtherDev++;
+        }
+      matrixline<<";";
+      equivalentH.push_back( rowEquivalentH );
+
+    }
+  matrixline<<"]";
+  NS_LOG_LOGIC("Built the equivalent channel matrix Heq with size " << equivalentH.size() << " x " << equivalentH.at(0).size()<<" : "<<matrixline.str());
+
+  return(equivalentH);
+}
 
 /*----------------------------------------------------------------------------*/
 
@@ -692,66 +793,7 @@ MmWaveMMSEBeamforming::MmseSolve (complex2DVector_t matrixH, complexVector_t v)
   return( x );
 }
 
-std::vector< Ptr<CodebookBFVectorCacheEntry>>
-MmWaveMMSEBeamforming::GetBfCachesInSlotBundle(std::vector< Ptr<NetDevice> > vOtherDevs)
-{
-  std::vector< Ptr<CodebookBFVectorCacheEntry>> bfCachesInSlot;
-  std::set< uint16_t > txBeamsCollection;
-  for (std::vector< Ptr<NetDevice> >::iterator itDev = vOtherDevs.begin() ; itDev != vOtherDevs.end() ; itDev++ )
-    {//retrieve the analog BF cache items, while making sure that the analog BF part is up to date
-      bool update = false;
-      bool notFound = false;
-      uint32_t beamKey = GetKey(m_mobility->GetObject<Node> ()->GetId (), (*itDev )->GetNode ()->GetId ());
-      std::map< uint32_t, Ptr<BFVectorCacheEntry> >::iterator itVectorCache = m_vectorCache.find(beamKey);
-      Ptr<CodebookBFVectorCacheEntry> bCacheEntry;
-      if ( itVectorCache != m_vectorCache.end() )
-        {
-          NS_LOG_DEBUG ("MMSE retrieved a beam from the map");
-          bCacheEntry = DynamicCast<CodebookBFVectorCacheEntry>(itVectorCache->second);
-          update = CheckBfCacheExpiration( (*itDev ),  bCacheEntry);
-        }
-      else
-        {
-          notFound = true;
-        }
-      if ( notFound | update ){
-          NS_LOG_DEBUG ("MMSE could not retreive beam from map or it has expired, generating new analog beam");
-          DoDesignBeamformingVectorForDevice ( (*itDev ) ); //we do not use the output value directly in this call
-          bCacheEntry=DynamicCast<CodebookBFVectorCacheEntry>( m_vectorCache[beamKey] );
-      }
-      if (txBeamsCollection.find(bCacheEntry->txBeamInd)!=txBeamsCollection.end())
-        {//if two users employ the same tx beam we have a matrix rank problem and the SINR suffers a lot, hence we adopt an alternative second-best beam
-          //TODO this conflict resolution is greedy, we can design better conflict resolution by going back and trying to substitute ALL repeated beams.
-          Ptr<CodebookBFVectorCacheEntry> auxBfRecord = Create<CodebookBFVectorCacheEntry> (); //we must create a temporary single-use copy of the bfCache struct
-          auxBfRecord->rxBeamInd = bCacheEntry->rxBeamInd;
-          auxBfRecord->m_equivalentChanCoefs = bCacheEntry->m_equivalentChanCoefs;
-          complex2DVector_t oneColumnAuxChan;
-          oneColumnAuxChan.push_back(auxBfRecord->m_equivalentChanCoefs.at(auxBfRecord->rxBeamInd));//this auxiliary vector reduces the following lookup dimensions in rx side
-          std::pair<uint16_t,uint16_t> bfPairSelection = bfGainLookup(oneColumnAuxChan,txBeamsCollection);
-          //the first component of this pair is actually garbage (always 1) because we used the oneColumnAuxChan variable in the function call
-          uint16_t altBeam = bfPairSelection.second;
-          uint16_t antennaNum [2];
-          antennaNum[0] = m_antenna->GetAntennaNumDim1 ();
-          antennaNum[1] = m_antenna->GetAntennaNumDim2 ();
-          auxBfRecord->txBeamInd=altBeam;
-          auxBfRecord->m_beamId=altBeam;//the analog beam ID is the txBeamInd
-          auxBfRecord->m_antennaWeights=bfVector2DFFT(altBeam,antennaNum);
-          bfCachesInSlot.push_back( auxBfRecord );
-          txBeamsCollection.insert(auxBfRecord->txBeamInd);
-          NS_LOG_DEBUG("MMSE BF beam conflict, node " << m_mobility->GetObject<Node> ()->GetId ()<< " pointing at node " << (*itDev )->GetNode ()->GetId () <<
-                       " may not use beamID " << bCacheEntry->txBeamInd << " fall back to beamID " << auxBfRecord->txBeamInd <<
-                       " BFgain penalty 1/"<< std::norm(auxBfRecord->m_equivalentChanCoefs.at(auxBfRecord->rxBeamInd).at(bCacheEntry->txBeamInd)) / std::norm(auxBfRecord->m_equivalentChanCoefs.at(auxBfRecord->rxBeamInd).at(auxBfRecord->txBeamInd))
-          );
-        }
-      else
-        {
-          bfCachesInSlot.push_back( bCacheEntry );
-          txBeamsCollection.insert(bCacheEntry->txBeamInd);
-        }
-    }
 
-  return(bfCachesInSlot);
-}
 void
 MmWaveMMSEBeamforming::SetBeamformingVectorForSlotBundle(std::vector< Ptr<NetDevice> > vOtherDevs , std::vector<uint16_t> vLayerInds)
 {
@@ -760,38 +802,40 @@ MmWaveMMSEBeamforming::SetBeamformingVectorForSlotBundle(std::vector< Ptr<NetDev
 
   NS_LOG_LOGIC("Started MMSE slot bundle processing. Detected " << bfCachesInSlot.size() << " simultaneous analog beams");
 
-  //this segment builds and equivalent channel Nb x Nb matrix with coefficients Heq_{i,j} = wa_i^H H_j^h b_j g_j
-    // wa_i are my analog beamforming vectors, 1 x Nant, hermitian when we are receiving
-    // H_j is the physical array MIMO channel towards device j, Nant x Nant2
-    // b_j is the transmit beamforming of device j, size Nant_of_j x 1
-    // g_j is the pathloss gain towards device j
-  //  the diagonal Heq[ii,ii] is the complex gain for beam ii,
-  //  and Heq[ii][jj] is the side-lobe cross-interference between beam ii-receiver and beam jj-transmitter
-  //  this matrix coefficients are obtained as the conjugates of the matrix stored in the analog beam design, which was implemented in transmission mode
-  complex2DVector_t equivalentH;
-  double propagationGainAmplitude = 0;
-  std::stringstream matrixline;
-  matrixline << "[";
-  for (std::vector< Ptr<CodebookBFVectorCacheEntry>>::iterator itBfThisDev = bfCachesInSlot.begin() ; itBfThisDev != bfCachesInSlot.end() ; itBfThisDev++ )
-    {
-      complexVector_t rowEquivalentH;
-      std::vector< Ptr<NetDevice> >::iterator itOtherDev = vOtherDevs.begin();
-      for (std::vector< Ptr<CodebookBFVectorCacheEntry>>::iterator itBfOtherDev = bfCachesInSlot.begin() ; itBfOtherDev != bfCachesInSlot.end() ; itBfOtherDev++ )
-        {
-          propagationGainAmplitude = sqrt( pow( 10.0, 0.1 * m_propagationLossModel->CalcRxPower (0, m_mobility, (*itOtherDev)->GetNode ()->GetObject<MobilityModel> ()) ) );
-	  rowEquivalentH.push_back( ( propagationGainAmplitude * (*itBfOtherDev)->m_equivalentChanCoefs.at( (*itBfOtherDev)->rxBeamInd ).at( (*itBfThisDev)->txBeamInd ) ) );//w[it2,i]H[it2,i]v[it,i] where i=this node
-	  matrixline << (itBfOtherDev == bfCachesInSlot.begin() ? "" : ",") << std::real(rowEquivalentH.back())<< "+1i*"<<std::imag(rowEquivalentH.back());
-	  itOtherDev++;
-	 }
-      matrixline<<";";
-      equivalentH.push_back( rowEquivalentH );
+//  //this segment builds and equivalent channel Nb x Nb matrix with coefficients Heq_{i,j} = wa_i^H H_j^h b_j g_j
+//    // wa_i are my analog beamforming vectors, 1 x Nant, hermitian when we are receiving
+//    // H_j is the physical array MIMO channel towards device j, Nant x Nant2
+//    // b_j is the transmit beamforming of device j, size Nant_of_j x 1
+//    // g_j is the pathloss gain towards device j
+//  //  the diagonal Heq[ii,ii] is the complex gain for beam ii,
+//  //  and Heq[ii][jj] is the side-lobe cross-interference between beam ii-receiver and beam jj-transmitter
+//  //  this matrix coefficients are obtained as the conjugates of the matrix stored in the analog beam design, which was implemented in transmission mode
+//  complex2DVector_t equivalentH;
+//  double propagationGainAmplitude = 0;
+//  std::stringstream matrixline;
+//  matrixline << "[";
+//  for (std::vector< Ptr<CodebookBFVectorCacheEntry>>::iterator itBfThisDev = bfCachesInSlot.begin() ; itBfThisDev != bfCachesInSlot.end() ; itBfThisDev++ )
+//    {
+//      complexVector_t rowEquivalentH;
+//      std::vector< Ptr<NetDevice> >::iterator itOtherDev = vOtherDevs.begin();
+//      for (std::vector< Ptr<CodebookBFVectorCacheEntry>>::iterator itBfOtherDev = bfCachesInSlot.begin() ; itBfOtherDev != bfCachesInSlot.end() ; itBfOtherDev++ )
+//        {
+//          propagationGainAmplitude = sqrt( pow( 10.0, 0.1 * m_propagationLossModel->CalcRxPower (0, m_mobility, (*itOtherDev)->GetNode ()->GetObject<MobilityModel> ()) ) );
+//	  rowEquivalentH.push_back( ( propagationGainAmplitude * (*itBfOtherDev)->m_equivalentChanCoefs.at( (*itBfOtherDev)->rxBeamInd ).at( (*itBfThisDev)->txBeamInd ) ) );//w[it2,i]H[it2,i]v[it,i] where i=this node
+//	  matrixline << (itBfOtherDev == bfCachesInSlot.begin() ? "" : ",") << std::real(rowEquivalentH.back())<< "+1i*"<<std::imag(rowEquivalentH.back());
+//	  itOtherDev++;
+//	 }
+//      matrixline<<";";
+//      equivalentH.push_back( rowEquivalentH );
+//
+//    }
+//  matrixline<<"]";
+//  NS_LOG_LOGIC("Built the equivalent channel matrix Heq with size " << equivalentH.size() << " x " << equivalentH.at(0).size()<<" : "<<matrixline.str());
 
-    }
-  matrixline<<"]";
-  NS_LOG_LOGIC("Built the equivalent channel matrix Heq with size " << equivalentH.size() << " x " << equivalentH.at(0).size()<<" : "<<matrixline.str());
-
+  complex2DVector_t equivalentH = getChanHMatrix( vOtherDevs );
   // this segment builds the matrix Wa^H from the antenna array weights in my beamforming vectors. The conjugate is used in reception
   complex2DVector_t analogWtransposed;
+  std::stringstream matrixline;
   matrixline.str("");
   matrixline << "[";
   uint8_t rowctr = 0 ,colctr = 0 ;
