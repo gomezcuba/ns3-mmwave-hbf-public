@@ -147,6 +147,8 @@ public:
 
   uint8_t GetCurrNumAllocLayers ();
 
+  complex2DVector_t getInterfMatrix( std::vector< uint16_t > vUeRntis );
+
 private:
   bool AddUePhy (uint16_t rnti);
   // LteEnbCphySapProvider forwarded methods

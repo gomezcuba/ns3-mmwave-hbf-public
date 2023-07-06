@@ -1971,6 +1971,25 @@ uint8_t MmWaveEnbPhy::GetCurrNumAllocLayers ()
   return m_currNumAllocLayers;
 }
 
+complex2DVector_t
+MmWaveEnbPhy::getInterfMatrix( std::vector< uint16_t > vUeRntis ){
+  Ptr<MmWaveFFTCodebookBeamforming> bfCasted = DynamicCast<MmWaveFFTCodebookBeamforming> ( GetDlSpectrumPhyList () .at (0) -> GetBeamformingModel () );
+
+  NS_ASSERT_MSG ( bfCasted != 0, "Failed to link CodebookBeamforming to retrieve interferenceMatrix");
+  std::vector< Ptr<NetDevice> > vUeDevsInMatrix;
+  for ( unsigned ctrUeRntis = 0 ; ctrUeRntis < vUeRntis.size() ; ctrUeRntis++ )
+  {
+    // this map pairs are <IMSI, Ptr<NetDevice> > but in our simulation experiments always IMSI = RNTI
+    uint16_t theUeRnti = vUeRntis[ctrUeRntis];
+    Ptr<mmwave::MmWaveUeNetDevice> ueDev = m_ueAttachedImsiMap.at (theUeRnti)-> GetObject<mmwave::MmWaveUeNetDevice> ();
+    vUeDevsInMatrix.push_back( ueDev );
+  }
+
+  complex2DVector_t interfMatrix = bfCasted-> getChanHMatrix ( vUeDevsInMatrix );
+
+  return (interfMatrix);
+}
+
 ////////////////////////////////////////////////////////////
 /////////                     sap                 /////////
 ///////////////////////////////////////////////////////////

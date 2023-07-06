@@ -41,8 +41,8 @@
 //headers required by the placeholder get-interference ideal solution
 #include <ns3/node-list.h>
 #include <ns3/node.h>
-#include "mmwave-ue-net-device.h"
 #include "mmwave-enb-net-device.h"
+#include "mmwave-enb-phy.h"
 
 namespace ns3 {
 
@@ -663,32 +663,16 @@ unsigned MmWaveInterAvoidHbfMacScheduler::CalcMinTbSizeNumSym (unsigned mcs, uns
 std::vector<std::vector<float>>
 MmWaveInterAvoidHbfMacScheduler::GetInterferenceTable (std::map <uint16_t, struct UeSchedInfo> ueInfo)
 {
-  // TODO: WARNING as of this version this code only works on a single-cell simulation, if there are 2 BS who assign the same RNTI to different mmWaveUeNetDevices the BS search gives unmatched pairs
-  // TODO: make adequate changes to mmwave-helper so that this map is build on initialization time
-  // TODO: make adequate changes to the RNTI assignment procedures so that this map is saved permanently and recalculated only when it changes (RRC?)
-  // walk list of all Nodes of the simulator to get the peer UEs
+  // walk list of all Nodes of the simulator to get BS phy and ask for the interference value
+  // TODO: WARNING as of this version this code only works on a single-cell simulation, if there are 2 BS we need to make adequate changes
+  // to mmwave-helper so that this device pointer is provided at initialization time
   Ptr<MmWaveEnbNetDevice> thisEnbDev;
-  std::map < uint16_t,Ptr<MmWaveUeNetDevice> > mapUeDevs;
-  uint32_t foundUe = 0;
   bool foundBs = false;
-  bool found = false;
-  for ( NodeList::Iterator itNode = NodeList::Begin (); (itNode != NodeList::End ()) && ( !found ) ; itNode++)
+  for ( NodeList::Iterator itNode = NodeList::Begin (); (itNode != NodeList::End ()) && ( !foundBs ) ; itNode++)
     {
       Ptr<Node> node = *itNode;// the iterator points at a LIST OF POINTERS
-      for ( uint32_t j = 0; ( j < node->GetNDevices () ) && ( !found ) ; j++ )
+      for ( uint32_t j = 0; ( j < node->GetNDevices () ) && ( !foundBs ) ; j++ )
         {
-          Ptr<MmWaveUeNetDevice> ueDev = node->GetDevice (j)->GetObject <MmWaveUeNetDevice> ();
-          if (ueDev != 0)
-            {
-              uint16_t rnti = ueDev->GetRrc ()->GetRnti();
-              std::map <uint16_t, struct UeSchedInfo>::iterator itUeInfo = ueInfo.find( rnti );
-              if ( itUeInfo != ueInfo.end () )
-                {
-                  NS_LOG_LOGIC("Found RNTI:" << rnti << " is Node: " << node->GetId () << " with mmWaveUeNetDevice IMSI:" << ueDev->GetImsi () );
-                  mapUeDevs.insert ( std::pair<uint16_t, Ptr<MmWaveUeNetDevice>> ( rnti ,ueDev ) );
-                  foundUe++;
-                }
-            }
           Ptr<MmWaveEnbNetDevice> enbDev = node->GetDevice (j)->GetObject <MmWaveEnbNetDevice> ();
           if (enbDev != 0)
             {
@@ -696,20 +680,28 @@ MmWaveInterAvoidHbfMacScheduler::GetInterferenceTable (std::map <uint16_t, struc
               thisEnbDev = enbDev;
               NS_LOG_LOGIC("Found this scheduler is Node: " << node->GetId () << " with CellID:" << thisEnbDev ->GetRrc() ->GetCellId () );
             }
-          found = foundBs && ( foundUe ==  mapUeDevs.size() );
         }
     }
-
-  // TODO: make changes to beamforming module so that the list of devices above is queried for the ACTUAL interference values
+  std::vector <uint16_t> ueRntiList;
+  for ( std::map <uint16_t, struct UeSchedInfo>::iterator itUeInfo = ueInfo.begin (); itUeInfo != ueInfo.end (); itUeInfo++){
+      ueRntiList .push_back( itUeInfo->first );
+      NS_LOG_LOGIC("Found rnti: " << itUeInfo->first << "must be added to interfTable");
+  }
+  // this is an extremely ideal interference CSIT model that directly reads interference channel gains from the PHY and 3GPPChannel models
   // TODO: make changes to the beam management and CQI procedures so that a realistic report of interference is delivered as a callback to the scheduler, like CQI and HARQ is handled
+  Ptr<MmWaveEnbPhy> thisMmwaveEnbPhy = thisEnbDev ->GetPhy()->GetObject <MmWaveEnbPhy> ();
+  NS_ASSERT_MSG(thisMmwaveEnbPhy !=0 , "The scheduler is not connected to a mmwave enb PHY");
+  complex2DVector_t interfMatrixComplex = thisMmwaveEnbPhy -> getInterfMatrix ( ueRntiList );
   std::vector<std::vector<float>> interferenceTable (ueInfo.size(), std::vector<float>(ueInfo.size(), 0.0));
   for (int A = 0; A < (int) ueInfo.size(); A++)
     {
       for (int B = A + 1; B < (int) ueInfo.size(); B++)
         {
-          float random = static_cast<float>(rand()) / RAND_MAX;
-          float randomRounded = std::round(random * 10) / 10;
-          interferenceTable[B][A] = interferenceTable[A][B] = randomRounded;
+          NS_LOG_LOGIC("Interferencia[" << B + 1 << "][" << A + 1 << "]");
+//          float random = static_cast<float>(rand()) / RAND_MAX;
+//          float randomRounded = std::round(random * 10) / 10;
+//          interferenceTable[B][A] = interferenceTable[A][B] = randomRounded;
+          interferenceTable[B][A] = interferenceTable[A][B] = std::norm(interfMatrixComplex[B][A]) + std::norm(interfMatrixComplex[A][B]); //norm is squared magnitude
           NS_LOG_LOGIC("Interferencia[" << B + 1 << "][" << A + 1 << "] = " << interferenceTable[B][A]);
         }
     }
@@ -1517,7 +1509,7 @@ MmWaveInterAvoidHbfMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedS
 	  }
 	  for (const auto& mapa : ueToLayerMapDl)
 	  {
-	          std::cout << "UE: " << mapa.first << ", Layer: " << (int) mapa.second << std::endl;
+	      NS_LOG_LOGIC( "UE: " << mapa.first << ", Layer: " << (int) mapa.second );
 	  }
 	  //return;		// PARA PROBAS
 
