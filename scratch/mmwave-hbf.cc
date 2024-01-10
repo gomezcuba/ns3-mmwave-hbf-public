@@ -117,7 +117,7 @@ main (int argc, char *argv[])
 //	LogComponentEnable("PropagationLossModel",LOG_LEVEL_ALL);
 //    LogComponentEnable ("MmwaveHbfSpectrumChannel", LOG_LEVEL_INFO);
 //    LogComponentEnable ("MmWavePaddedHbfMacScheduler", LOG_LEVEL_INFO);
-    LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_INFO);
+    LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_LOGIC);
 //    LogComponentEnable ("MmWaveFlexTtiMacScheduler", LOG_LEVEL_INFO);
     LogComponentEnable ("MmWaveInterAvoidHbfMacScheduler", LOG_LEVEL_LOGIC);
     LogComponentEnable ("MmWavePhy", LOG_LEVEL_DEBUG);
