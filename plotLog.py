@@ -28,6 +28,7 @@ for ln in file:
         posFinTBLER=ln.find(" corrupted")#onde comeza o numero
         TBLER = float(ln[posIniTBLER:posFinTBLER])
         listaTBLER.append(TBLER)
+        
     #elif ... : # poderiamos coller datos de varios print de formato coñecido no mesmo for
     #else: # non facemos nada con lineas de formato descoñecido
     
@@ -45,6 +46,7 @@ plt.plot(BLER,CDF)
 plt.xlabel('BLER')
 plt.ylabel('C.D.F')
 plt.axis([0,1,0,1])
+plt.savefig('BLERCDF.svg')
 
 [count,SINRdB]=np.histogram(SINR,bins=50,density=False)
 
@@ -55,3 +57,6 @@ plt.plot(SINRdB,CDF)
 plt.xlabel('SINRdB')
 plt.ylabel('C.D.F')
 plt.axis([np.min(SINRdB),np.max(SINRdB),0,1])
+
+plt.savefig('SINRCDF.svg')
+# plt.show()
