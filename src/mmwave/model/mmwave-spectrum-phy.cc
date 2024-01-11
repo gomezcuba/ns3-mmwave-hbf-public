@@ -53,6 +53,7 @@
 #include <ns3/double.h>
 #include <ns3/mmwave-mi-error-model.h>
 #include "mmwave-mac-pdu-tag.h"
+//#include "ns3/src/mmwave/helper/mmwave-helper.h"
 
 #include <ns3/three-gpp-spectrum-propagation-loss-model.h>
 
@@ -145,6 +146,12 @@ MmWaveSpectrumPhy::GetTypeId (void)
                    MakeBooleanAccessor (&MmWaveSpectrumPhy::m_dataErrorModelEnabled),
                    MakeBooleanChecker ())
 
+   .AddAttribute ("SicEnabled",
+					  "Activate/Deactivate the Succesive Interference Cancelation.",
+					  BooleanValue (true),
+					  MakeBooleanAccessor (&MmWaveSpectrumPhy::m_sicEnabled),
+					  MakeBooleanChecker ())
+
     .AddAttribute ("FileName",
                    "file name",
                    StringValue ("no"),
@@ -204,6 +211,18 @@ Ptr<NetDevice>
 MmWaveSpectrumPhy::GetDevice () const
 {
   return m_device;
+}
+
+void
+MmWaveSpectrumPhy::Set_SIC (bool sic_enabled)
+{
+  m_sicEnabled = sic_enabled;
+}
+
+bool
+MmWaveSpectrumPhy::Get_SIC ()
+{
+  return m_sicEnabled;
 }
 
 void
@@ -467,7 +486,18 @@ MmWaveSpectrumPhy::StartRx (Ptr<SpectrumSignalParameters> params)
     		  NS_LOG_INFO("Computed the BF gain at UE allocated layer " << (int ) ueRx->GetPhy (m_componentCarrierId)->GetAllocLayerInd() << " SpectrumPhy::StartRx for signal of layer " << (int) layerInd << " the UE m_layerInd is "<<(int)  m_layerInd);
     	  }
     	  NS_LOG_DEBUG("Node "<<  GetDevice()->GetAddress() <<" detected in layer " << (int) m_layerInd << " a signal with power "<<Sum (*(mmwaveDataRxParams->psd)));
-          m_interferenceData->AddSignal (mmwaveDataRxParams->psd, mmwaveDataRxParams->duration);
+
+    	  if ((m_sicEnabled == true) && (m_layerInd > mmwaveDataRxParams->layerInd))
+    	  {
+    		  //La interferencia de un layer anterior no se añade
+    		  NS_LOG_INFO ("SIC layer "<< m_layerInd<< " ignores received interference of layer: "<< (mmwaveDataRxParams->layerInd) << " power: " << mmwaveDataRxParams->psd << " duration: "<< mmwaveDataRxParams->duration);
+
+    	  }else{
+
+    		  m_interferenceData->AddSignal (mmwaveDataRxParams->psd, mmwaveDataRxParams->duration);
+    	  }
+
+    	//  m_interferenceData->AddSignal (mmwaveDataRxParams->psd, mmwaveDataRxParams->duration);
     	  if (mmwaveDataRxParams->cellId == m_cellId && isMyLayer)
     	  {
     		  NS_LOG_INFO ("Data is for this UE/Layer, StartRxData");

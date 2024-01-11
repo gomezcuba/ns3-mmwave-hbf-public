@@ -447,7 +447,7 @@ MmWaveAsyncHbfMacScheduler::DoSchedUlCqiInfoReq (const struct MmWaveMacSchedSapP
                 itTimers = m_ueCqiTimers.find (itMap->second.m_rntiPerChunk.at (i));
                 (*itTimers).second = m_cqiTimersThreshold;
 
-                NS_LOG_LOGIC ("UL CQI report for RNTI " << itMap->second.m_rntiPerChunk.at (i) << " chunk " << i << " SINR " << params.m_ulCqi.m_sinr.at (i) << \
+                NS_LOG_INFO ("UL CQI report for RNTI " << itMap->second.m_rntiPerChunk.at (i) << " chunk " << i << " SINR " << params.m_ulCqi.m_sinr.at (i) << \
                              " frame " << frameNum << " subframe " << subframeNum << " startSym " << startSymIdx);
 
               }

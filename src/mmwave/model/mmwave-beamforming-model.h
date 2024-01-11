@@ -228,7 +228,7 @@ public:
    * The beamforming vector is computed using a FFT-codebook
    * \param the target device
    */
-  //  void SetBeamformingVectorForDevice (Ptr<NetDevice> otherDevice, uint8_t layerInd = 0);//we do not need to override this function, only the call to the next one
+//  void SetBeamformingVectorForDevice (Ptr<NetDevice> otherDevice, uint8_t layerInd = 0);//we do not need to override this function, only the call to the next one
 
 
   /**
@@ -239,18 +239,14 @@ public:
   virtual AntennaArrayBasicModel::BeamformingVector DoDesignBeamformingVectorForDevice (Ptr<NetDevice> otherDevice) override;
 
   /**
-   * Checks the expiration of a BF vector cache entry. Overriding this function can let subclasses of this class modify the cache  behavior
-   * \param the target device
-   * \param the target cache entry
-   */
-  virtual bool CheckBfCacheExpiration(Ptr<NetDevice> otherDevice, Ptr<BFVectorCacheEntry> pCacheValue) override;
+      * Checks the expiration of a BF vector cache entry. Overriding this function can let subclasses of this class modify the cache  behavior
+      * \param the target device
+      * \param the target cache entry
+      */
+   virtual bool CheckBfCacheExpiration(Ptr<NetDevice> otherDevice, Ptr<BFVectorCacheEntry> pCacheValue) override;
 
-  virtual std::pair<uint16_t,uint16_t> bfGainLookup(complex2DVector_t& equivalentChannelCoefs, std::set<uint16_t> blockedTxIdx = {});
-  complexVector_t bfVector2DFFT(uint16_t index, uint16_t antennaNum [2]);
-
-  complex2DVector_t getChanHMatrix( std::vector< Ptr<NetDevice> > vOtherDevs );
-protected:
-  std::vector< Ptr<CodebookBFVectorCacheEntry>> GetBfCachesInSlotBundle(std::vector< Ptr<NetDevice> > vOtherDevs);
+   virtual std::pair<uint16_t,uint16_t> bfGainLookup(complex2DVector_t& equivalentChannelCoefs, std::set<uint16_t> blockedTxIdx = {});
+   complexVector_t bfVector2DFFT(uint16_t index, uint16_t antennaNum [2]);
 
 private:
 
@@ -300,6 +296,7 @@ public:
 
 protected:
   complex2DVector_t MmseCholesky (complex2DVector_t matrixH);
+  std::vector< Ptr<CodebookBFVectorCacheEntry>> GetBfCachesInSlotBundle(std::vector< Ptr<NetDevice> > vOtherDevs);
 
 private:
 

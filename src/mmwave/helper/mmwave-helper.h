@@ -181,6 +181,9 @@ public:
 
   void SetHarqEnabled (bool harqEnabled);
   bool GetHarqEnabled ();
+  void Set_SIC (bool sicEnabled);
+  bool Get_SIC ();
+
   void SetSnrTest (bool snrTest);
   bool GetSnrTest ();
   Ptr<PropagationLossModel> GetPathLossModel (uint8_t index);
@@ -367,6 +370,7 @@ private:
   Ptr<EpcHelper> m_epcHelper;
 
   bool m_harqEnabled;
+  bool m_sicEnabled;
   bool m_rlcAmEnabled;
   bool m_snrTest;
   bool m_useIdealRrc;       // Initialized as true in the constructor

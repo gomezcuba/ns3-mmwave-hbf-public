@@ -104,11 +104,6 @@ MmWaveEnbPhy::MmWaveEnbPhy (std::vector<Ptr<MmWaveSpectrumPhy> > dlPhyList, std:
   m_enbCphySapProvider = new MemberLteEnbCphySapProvider<MmWaveEnbPhy> (this);
   m_roundFromLastUeSinrUpdate = 0;
   Simulator::ScheduleNow (&MmWaveEnbPhy::StartSubFrame, this);
-  
-  std::ofstream f; 
-  f.open ("padded-symbols.txt", std::ios::out);
-  f << "frame" << "\t" << "subframe" << "\t" << "layerInd" << "\t" << "paddedSymbols" << "\n";
-  f.close ();
 }
 
 MmWaveEnbPhy::~MmWaveEnbPhy ()
@@ -1161,6 +1156,7 @@ MmWaveEnbPhy::StartSubFrame (void)
   m_currSfNumSlots = m_currSfAllocInfo.m_slotAllocInfo.size ();
   m_currNumAllocLayers = m_currSfAllocInfo.m_numAllocLayers;
 
+  //uNS_LOG_UNCOND ("El slot empieza en: " << m_lastSfStart << " con " << (int)m_currNumAllocLayers << " layers y el numero de slots es " << (int)m_currSfNumSlots);
   NS_LOG_INFO ("Frame num:" << (int)m_frameNum << ", Subframe num:" << (int)m_sfNum << ", Num allocated layers:" << (int)m_currNumAllocLayers);
   NS_LOG_INFO ("Num slots in this subframe:" << (int)m_currSfNumSlots);
 
@@ -1196,7 +1192,7 @@ MmWaveEnbPhy::StartSubFrame (void)
                           slotBundle.m_minNumSym = numSym;
                         }
                     }
-                  else
+                  else //Si se activa esto es que la ranura actual no pertenece al bundle actual y se mete en otro bundle posterior
                     {
                       m_slotBundleList.push_back (slotBundle);
                       ind = sInd;
@@ -1303,7 +1299,7 @@ MmWaveEnbPhy::StartSlot (void)
             {
               DciInfoElementTdma &dciElem = m_currSfAllocInfo.m_slotAllocInfo[islot].m_dci;
               NS_ASSERT (dciElem.m_format == DciInfoElementTdma::DL_dci);
-              if (dciElem.m_tbSize > 0)
+              if (dciElem.m_tbSize > 0) //Si quedan cosas por transmitir
                 {
                   Ptr<MmWaveTdmaDciMessage> dciMsg = Create<MmWaveTdmaDciMessage> ();
                   dciMsg->SetDciInfoElement (dciElem);
@@ -1419,10 +1415,9 @@ MmWaveEnbPhy::StartSlot (void)
           for (uint8_t layerInd = 0; layerInd < currNumLayers; layerInd++)
             {
               if (layerInd>0)
-            	{
-            	  m_slotNum++;
-            	}//TODO Revise. If I undesrtand correctly this should this be +1 [Felipe]
-                  
+        	{
+        	  m_slotNum++;
+        	}//TODO Revise. If I undesrtand correctly this should this be +1 [Felipe]
               currSlot = m_currSfAllocInfo.m_slotAllocInfo[m_slotNum];
               slotPeriod = NanoSeconds (1000.0 * m_phyMacConfig->GetSymbolPeriod () * currSlot.m_dci.m_numSym);
               NS_ASSERT (currSlot.m_tddMode == SlotAllocInfo::DL_slotAllocInfo);
@@ -1455,7 +1450,6 @@ MmWaveEnbPhy::StartSlot (void)
 
               for (uint8_t i = 0; i < m_deviceMap.size (); i++)
                 {
-                  //TODO take advantage of m_ueAttachedImsiMap as IMSI = RNTI
                   Ptr<mmwave::MmWaveUeNetDevice> ueDev = m_deviceMap.at (i)->GetObject<mmwave::MmWaveUeNetDevice> ();
                   if (currSlot.m_dci.m_rnti == ueDev->GetPhy ()->GetRnti ())
                     {
@@ -1477,25 +1471,6 @@ MmWaveEnbPhy::StartSlot (void)
 
               m_allActiveSlotNums.push_back(m_slotNum);
               Simulator::Schedule (NanoSeconds (1), &MmWaveEnbPhy::SendDataChannels, this, pktBurst, slotPeriod - NanoSeconds (2.0), currSlot);
-            
-              // compute the number of wasted symbols
-              if (m_lastTxMap.find (layerInd) != m_lastTxMap.end () && // check if this is the first tx
-                  m_lastTxSubframe.at (layerInd) == m_sfNum && m_lastTxFrame.at (layerInd) == m_frameNum) // compute padding only inside subframes
-              {
-                Time wastedTime = Simulator::Now () - m_lastTxMap [layerInd];
-                uint8_t paddedSymbols = std::ceil (wastedTime.GetNanoSeconds () / (m_phyMacConfig->GetSymbolPeriod () * 1000));
-                
-                std::ofstream f; 
-                f.open ("padded-symbols.txt", std::ios::out | std::ios::app);
-                f << +m_frameNum << "\t" << +m_sfNum << "\t" << +layerInd << "\t" << +paddedSymbols << "\n";
-                f.close ();
-                NS_LOG_DEBUG ("Frame " << +m_sfNum << " Subframe " << +m_sfNum << 
-                               "  Layer " << + layerInd << " padded symbols " << +paddedSymbols << 
-                               " wastedTime " << wastedTime.GetNanoSeconds () << " symbPeriod " << m_phyMacConfig->GetSymbolPeriod ());
-              }
-              m_lastTxMap [layerInd] = Simulator::Now () + slotPeriod;
-              m_lastTxSubframe [layerInd] = m_sfNum;
-              m_lastTxFrame [layerInd] = m_frameNum;
             }
 
           if ( bfCasted != 0 )
@@ -1969,25 +1944,6 @@ MmWaveEnbPhy::IsReceptionEnabled ()
 uint8_t MmWaveEnbPhy::GetCurrNumAllocLayers ()
 {
   return m_currNumAllocLayers;
-}
-
-complex2DVector_t
-MmWaveEnbPhy::getInterfMatrix( std::vector< uint16_t > vUeRntis ){
-  Ptr<MmWaveFFTCodebookBeamforming> bfCasted = DynamicCast<MmWaveFFTCodebookBeamforming> ( GetDlSpectrumPhyList () .at (0) -> GetBeamformingModel () );
-
-  NS_ASSERT_MSG ( bfCasted != 0, "Failed to link CodebookBeamforming to retrieve interferenceMatrix");
-  std::vector< Ptr<NetDevice> > vUeDevsInMatrix;
-  for ( unsigned ctrUeRntis = 0 ; ctrUeRntis < vUeRntis.size() ; ctrUeRntis++ )
-  {
-    // this map pairs are <IMSI, Ptr<NetDevice> > but in our simulation experiments always IMSI = RNTI
-    uint16_t theUeRnti = vUeRntis[ctrUeRntis];
-    Ptr<mmwave::MmWaveUeNetDevice> ueDev = m_ueAttachedImsiMap.at (theUeRnti)-> GetObject<mmwave::MmWaveUeNetDevice> ();
-    vUeDevsInMatrix.push_back( ueDev );
-  }
-
-  complex2DVector_t interfMatrix = bfCasted-> getChanHMatrix ( vUeDevsInMatrix );
-
-  return (interfMatrix);
 }
 
 ////////////////////////////////////////////////////////////

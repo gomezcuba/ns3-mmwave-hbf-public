@@ -57,6 +57,7 @@
 #include "mmwave-control-messages.h"
 #include "mmwave-harq-phy.h"
 #include "ns3/mmwave-beamforming-model.h"
+//#include "ns3/src/mmwave/helper/mmwave-helper.h"
 
 namespace ns3 {
 
@@ -122,6 +123,8 @@ public:
 
   void SetDevice (Ptr<NetDevice> d);
   Ptr<NetDevice> GetDevice () const;
+  void Set_SIC (bool sic_enabled);
+  bool Get_SIC ();
   void SetMobility (Ptr<MobilityModel> m);
   Ptr<MobilityModel> GetMobility ();
   void SetChannel (Ptr<SpectrumChannel> c);
@@ -254,6 +257,7 @@ private:
 
   bool m_dataErrorModelEnabled;       // when true (default) the phy error model is enabled
   bool m_ctrlErrorModelEnabled;       // when true (default) the phy error model is enabled for DL ctrl frame
+  bool m_sicEnabled;
 
   Ptr<MmWaveHarqPhy> m_harqPhyModule;
 

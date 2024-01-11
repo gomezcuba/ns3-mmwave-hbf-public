@@ -63,8 +63,10 @@ RttChange (Ptr<OutputStreamWrapper> stream, Time oldRtt, Time newRtt)
 static void
 Traces(uint32_t serverId, uint32_t ueId, std::string pathVersion, std::string finalPart)
 {
+	// Se crea un objeto helper para trazas ASCII
   AsciiTraceHelper asciiTraceHelper;
 
+  //Se construye la ruta para cwnd
   std::ostringstream pathCW;
   pathCW<<"/NodeList/"<< serverId <<"/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow";
 
@@ -101,37 +103,38 @@ NS_LOG_COMPONENT_DEFINE ("EpcFirstExample");
 	int
 main (int argc, char *argv[])
 {
-//	LogComponentEnable ("LteUeRrc", LOG_LEVEL_ALL);
-//	LogComponentEnable ("LteEnbRrc", LOG_LEVEL_ALL);
-//	LogComponentEnable("MmWavePointToPointEpcHelper",LOG_LEVEL_ALL);
-//	LogComponentEnable("EpcUeNas",LOG_LEVEL_ALL);
-//	LogComponentEnable ("MmWaveSpectrumPhy", LOG_LEVEL_DEBUG);
-//	LogComponentEnable ("MmWaveUePhy", LOG_LEVEL_INFO);
-//	LogComponentEnable ("MmWaveEnbPhy", LOG_LEVEL_INFO);
-//	LogComponentEnable ("MmWaveBeamformingModel", LOG_LEVEL_DEBUG);
-//	LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_LOGIC);
-//	LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-//	LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
-//	LogComponentEnable ("ThreeGppSpectrumPropagationLossModel", LOG_LEVEL_DEBUG);
-//  LogComponentEnable ("ThreeGppChannel", LOG_LEVEL_DEBUG);
-//	LogComponentEnable("PropagationLossModel",LOG_LEVEL_ALL);
-//    LogComponentEnable ("MmwaveHbfSpectrumChannel", LOG_LEVEL_INFO);
-//    LogComponentEnable ("MmWavePaddedHbfMacScheduler", LOG_LEVEL_INFO);
-    LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_LOGIC);
-//    LogComponentEnable ("MmWaveFlexTtiMacScheduler", LOG_LEVEL_INFO);
-    LogComponentEnable ("MmWaveInterAvoidHbfMacScheduler", LOG_LEVEL_LOGIC);
-    LogComponentEnable ("MmWavePhy", LOG_LEVEL_DEBUG);
-//    LogComponentEnable ("MmWaveEnbMac", LOG_LEVEL_INFO);
-//    LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_INFO);
+	//LogComponentEnable ("LteUeRrc", LOG_LEVEL_ALL);
+	//LogComponentEnable ("LteEnbRrc", LOG_LEVEL_ALL);
+	//LogComponentEnable("MmWavePointToPointEpcHelper",LOG_LEVEL_ALL);
+	//LogComponentEnable("EpcUeNas",LOG_LEVEL_ALL);
+	 //LogComponentEnable ("MmWaveSpectrumPhy", LOG_LEVEL_DEBUG);
+	//LogComponentEnable ("MmWaveUePhy", LOG_LEVEL_INFO);
+	//LogComponentEnable ("MmWaveEnbPhy", LOG_LEVEL_INFO);
+	//LogComponentEnable ("MmWaveEnbPhy", LOG_LEVEL_DEBUG);
+	//LogComponentEnable ("MmWaveBeamformingModel", LOG_LEVEL_DEBUG);
+	//LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_LOGIC);
+	//LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+	//LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
+	 //LogComponentEnable ("ThreeGppSpectrumPropagationLossModel", LOG_LEVEL_DEBUG);
+	//LogComponentEnable ("ThreeGppChannel", LOG_LEVEL_DEBUG);
+	//LogComponentEnable("PropagationLossModel",LOG_LEVEL_ALL);
+	  //    LogComponentEnable ("MmwaveHbfSpectrumChannel", LOG_LEVEL_INFO);
+        // LogComponentEnable ("MmWavePaddedHbfMacScheduler", LOG_LEVEL_INFO);
+       // LogComponentEnable ("MmWaveAsyncHbfMacScheduler", LOG_LEVEL_INFO);
+       //  LogComponentEnable ("MmWaveFlexTtiMacScheduler", LOG_LEVEL_INFO);
+      //  LogComponentEnable ("MmWavePhy", LOG_LEVEL_INFO);
+      //  LogComponentEnable ("MmWaveEnbMac", LOG_LEVEL_INFO);
+      //  LogComponentEnable ("MmWaveUeMac", LOG_LEVEL_INFO);
 
 	uint16_t numEnb = 1;
 	uint16_t numUe = 7;
 	uint16_t numEnbLayers = 4;
-	double startTime = 0.02;
-        double simTime = .4;
+	double startTime = 0.4;
+        double simTime = 1.2;
 	double packetSize = 1460; // packet size in byte
 	double interPacketInterval = 5000; // 500 microseconds
-	bool harqEnabled = false;
+	bool harqEnabled = true;
+	bool sicEnabled = false; //Successive Interference Cancelation
 	bool rlcAmEnabled = false;
 	//bool useIdealRrc = true;
 	bool fixedTti = false;
@@ -142,13 +145,12 @@ main (int argc, char *argv[])
 	std::string schedulerType =
 //	    "ns3::MmWaveFlexTtiMacScheduler"
 //	    "ns3::MmWaveAsyncHbfMacScheduler"
-//	    "ns3::MmWavePaddedHbfMacScheduler"
-	    "ns3::MmWaveInterAvoidHbfMacScheduler" //(Este es el mío)
+	    "ns3::MmWavePaddedHbfMacScheduler"
 	    ;
 	std::string beamformerType =
 //	    "ns3::MmWaveDftBeamforming"
-//	    "ns3::MmWaveFFTCodebookBeamforming"
-            "ns3::MmWaveMMSEBeamforming"
+	    "ns3::MmWaveFFTCodebookBeamforming"
+//            "ns3::MmWaveMMSEBeamforming"
 //	    "ns3::MmWaveMMSESpectrumBeamforming"
 	    ;
 
@@ -159,6 +161,7 @@ main (int argc, char *argv[])
 	cmd.AddValue ("simTime", "Total duration of the simulation [s])", simTime);
 	cmd.AddValue ("interPacketInterval", "Inter-packet interval [us])", interPacketInterval);
 	cmd.AddValue ("harq", "Enable Hybrid ARQ", harqEnabled);
+	cmd.AddValue ("sic", "Enable SIC", sicEnabled);
 	cmd.AddValue ("rlcAm", "Enable RLC-AM", rlcAmEnabled);
 	cmd.AddValue ("fixedTti", "Fixed TTI scheduler option", fixedTti);
         cmd.AddValue ("sched", "The type of scheduler algorithm", schedulerType);
@@ -168,11 +171,15 @@ main (int argc, char *argv[])
 	//cmd.AddValue ("useIdealRrc", "whether to use ideal RRC layer or not", useIdealRrc);
 	cmd.Parse (argc, argv);
 
+	//Primer log que aparece en pantalla
         NS_LOG_UNCOND("Scheduler: " << schedulerType << " Beamformer: " << beamformerType << " HARQ: " << harqEnabled);
+        NS_LOG_UNCOND("La simulacion utiliza SIC: " << sicEnabled);
+
 
 
 	Config::SetDefault ("ns3::MmWaveHelper::RlcAmEnabled", BooleanValue (rlcAmEnabled));
 	Config::SetDefault ("ns3::MmWaveHelper::HarqEnabled", BooleanValue (harqEnabled));
+	Config::SetDefault ("ns3::MmWaveHelper::sicEnabled", BooleanValue (sicEnabled));
 //	Config::SetDefault ("ns3::MmWaveHelper::UseIdealRrc", BooleanValue (useIdealRrc));
 //	Config::SetDefault ("ns3::MmWaveFlexTtiMacScheduler::HarqEnabled", BooleanValue (harqEnabled));
 //	Config::SetDefault ("ns3::MmWaveFlexTtiMacScheduler::CqiTimerThreshold", UintegerValue (1000));
@@ -241,6 +248,7 @@ main (int argc, char *argv[])
 	}
 
     Config::SetDefault (schedulerType+"::HarqEnabled", BooleanValue (harqEnabled));
+    //Config::SetDefault (schedulerType+"::sicEnabled", BooleanValue (sicEnabled));
     Config::SetDefault (schedulerType+"::CqiTimerThreshold", UintegerValue (100));
 
 	Ptr<MmWaveHelper> mmwaveHelper = CreateObject<MmWaveHelper> ();
@@ -255,6 +263,9 @@ main (int argc, char *argv[])
 	Ptr<MmWavePointToPointEpcHelper>  epcHelper = CreateObject<MmWavePointToPointEpcHelper> ();
 	mmwaveHelper->SetEpcHelper (epcHelper);
 	mmwaveHelper->SetHarqEnabled (harqEnabled);
+	mmwaveHelper->Set_SIC (sicEnabled);
+
+	Config::SetDefault ("ns3::MmWaveSpectrumPhy::SicEnabled", BooleanValue (sicEnabled));
 
 	ConfigStore inputConfig;
 	inputConfig.ConfigureDefaults ();
@@ -291,7 +302,7 @@ main (int argc, char *argv[])
 		// interface 0 is localhost, 1 is the p2p device
 		Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress (1);
 		remoteHostAddresses.push_back(remoteHostAddr);
-		NS_LOG_UNCOND(remoteHostAddr);
+		NS_LOG_UNCOND(remoteHostAddr); //segundo print
 		Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting (remoteHost->GetObject<Ipv4> ());
 		remoteHostStaticRouting->AddNetworkRouteTo (Ipv4Address ("7.0.0.0"), Ipv4Mask ("255.0.0.0"), 1);
 	}
@@ -379,6 +390,7 @@ main (int argc, char *argv[])
 	      }
 	    else
 	      {
+	    	//Aparece esto porque va por UDP para 7 UEs
 	        NS_LOG_UNCOND("Building UDP apps for UE "<<(int) u<<" with packet period " << interPacketInterval << " us ");
 	        ulPort++;
 	        PacketSinkHelper dlPacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));

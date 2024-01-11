@@ -79,6 +79,7 @@ MmWaveHelper::MmWaveHelper (void)
   : m_imsiCounter (0),
     m_cellIdCounter (1),
     m_harqEnabled (false),
+	m_sicEnabled(false),
     m_rlcAmEnabled (false),
     m_snrTest (false),
     m_useIdealRrc (false)
@@ -134,7 +135,7 @@ MmWaveHelper::GetTypeId (void)
                    "The type of scheduler to be used for MmWave eNBs. "
                    "The allowed values for this attributes are the type names "
                    "of any class inheriting from ns3::MmWaveMacScheduler.",
-                   StringValue ("ns3::MmWaveInterAvoidHbfMacScheduler"),
+                   StringValue ("ns3::MmWaveAsyncHbfMacScheduler"),
                    MakeStringAccessor (&MmWaveHelper::SetSchedulerType,
                                        &MmWaveHelper::GetSchedulerType),
                    MakeStringChecker ())
@@ -151,6 +152,11 @@ MmWaveHelper::GetTypeId (void)
                    BooleanValue (true),
                    MakeBooleanAccessor (&MmWaveHelper::m_harqEnabled),
                    MakeBooleanChecker ())
+	.AddAttribute ("sicEnabled",
+				  "Enable SIC",
+				  BooleanValue (true),
+				  MakeBooleanAccessor (&MmWaveHelper::m_sicEnabled),
+				  MakeBooleanChecker ())
     .AddAttribute ("RlcAmEnabled",
                    "Enable RLC Acknowledged Mode",
                    BooleanValue (false),
@@ -583,6 +589,18 @@ bool
 MmWaveHelper::GetHarqEnabled ()
 {
   return m_harqEnabled;
+}
+
+void
+MmWaveHelper::Set_SIC (bool SIC_Enabled)
+{
+  m_sicEnabled = SIC_Enabled;
+}
+
+bool
+MmWaveHelper::Get_SIC ()
+{
+  return m_sicEnabled;
 }
 
 void
@@ -1593,6 +1611,8 @@ MmWaveHelper::InstallSingleEnbDevice (Ptr<Node> n)
           dlPhy->SetChannel (m_channel.at (it->first));
           ulPhy->SetMobility (mm);
           dlPhy->SetMobility (mm);
+          ulPhy->Set_SIC(m_sicEnabled );
+          dlPhy->Set_SIC(m_sicEnabled );
           
           ulPhyList.push_back(ulPhy);
           dlPhyList.push_back(dlPhy);
