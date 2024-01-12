@@ -267,6 +267,45 @@ def get_delay_data (campaign, params):
         
         return (delay_ul_data, delay_dl_data)
 
+def get_carrier_load (campaign, params):
+    load = np.full (len(campaign.db.get_results (params)), np.nan)
+    
+    index = 0
+    for r in campaign.db.get_results (params):
+        available_files = campaign.db.get_result_files (r)
+        
+        data = pd.read_csv (available_files ['RxPacketTrace.txt'], delimiter = "\t", index_col=False, usecols = [0, 2, 5, 16], names = ['mode', 'frame', 'numSym', 'TxLayers'], 
+                            dtype = {'mode' : 'object', 'frame' : 'int64', 'numSym' : 'int64', 'TxLayers' : 'int64'}, engine='python', header=0)
+        used_sym = data['numSym'].sum()
+        load [index] = used_sym
+        index = index + 1
+    
+    if (index != len (load)):
+        raise Exception ("Less than " + str (len (load)) + " results!")
+        
+    return (load.mean (), get_std_err (load))
+
+def get_padded_symbols (campaign, params):
+    numPaddedSym = np.full (len(campaign.db.get_results (params)), np.nan)
+    
+    index = 0
+    for r in campaign.db.get_results (params):
+        available_files = campaign.db.get_result_files (r)
+        
+        data = pd.read_csv (available_files ['padded-symbols.txt'], delimiter = "\t", index_col=False, usecols = [3], names = ['paddedSymbols'], 
+                            dtype = {'paddedSymbols' : 'int64'}, engine='python', header=0)
+        
+        for i in data ['paddedSymbols']:
+            if (i < 0 or i > 14):
+                print (str (i) + ' not valid')
+        numPaddedSym [index] = data ['paddedSymbols'].sum ()
+        index = index + 1
+    
+    if (index != len (numPaddedSym)):
+        print (params)
+        raise Exception ("Found " + str (index) + "results. Less than " + str (len (numPaddedSym)) + " results!")
+    return (numPaddedSym.mean (), get_std_err (numPaddedSym))
+    
 def compute_ecdf (samples):
     # create x axis
     nbins = 100

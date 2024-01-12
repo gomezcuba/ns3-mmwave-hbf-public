@@ -631,7 +631,7 @@ ThreeGppSpectrumPropagationLossModel::DoCalcRxPowerSpectralDensityMultilayers (P
       bfGainPsd = CalBeamformingGain (rxPsd, longTerm, channelMatrix, a->GetVelocity (), b->GetVelocity ());
     }
   (*rxPsd) *= (*bfGainPsd);
-  NS_LOG_DEBUG("BF Gain TxId " << a->GetObject<Node>()->GetId () << " RxId " << b->GetObject<Node>()->GetId () << " TxBeam " << AntennaArrayBasicModel::GetBeamId(txW) << " RxBeam " << AntennaArrayBasicModel::GetBeamId(rxW) << " g= " << Sum(*bfGainPsd) / bfGainPsd->GetSpectrumModel()->GetNumBands() );
+  NS_LOG_UNCOND("BF Gain TxId " << a->GetObject<Node>()->GetId () << " RxId " << b->GetObject<Node>()->GetId () << " TxBeam " << AntennaArrayBasicModel::GetBeamId(txW) << " RxBeam " << AntennaArrayBasicModel::GetBeamId(rxW) << " g= " << Sum(*bfGainPsd) / bfGainPsd->GetSpectrumModel()->GetNumBands() );
   return rxPsd;
 }
 

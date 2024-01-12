@@ -57,7 +57,6 @@
 #include "mmwave-control-messages.h"
 #include "mmwave-harq-phy.h"
 #include "ns3/mmwave-beamforming-model.h"
-//#include "ns3/src/mmwave/helper/mmwave-helper.h"
 
 namespace ns3 {
 

@@ -129,7 +129,7 @@ main (int argc, char *argv[])
 	uint16_t numEnb = 1;
 	uint16_t numUe = 7;
 	uint16_t numEnbLayers = 4;
-	double startTime = 0.4;
+	double startTime = 0.02;
         double simTime = 1.2;
 	double packetSize = 1460; // packet size in byte
 	double interPacketInterval = 5000; // 500 microseconds
@@ -146,6 +146,7 @@ main (int argc, char *argv[])
 //	    "ns3::MmWaveFlexTtiMacScheduler"
 //	    "ns3::MmWaveAsyncHbfMacScheduler"
 	    "ns3::MmWavePaddedHbfMacScheduler"
+//	    "ns3::MmWaveInterAvoidHbfMacScheduler" //(Este es el mío)
 	    ;
 	std::string beamformerType =
 //	    "ns3::MmWaveDftBeamforming"

@@ -11,4 +11,8 @@ appTime = 1.2 - 0.4 # simTime - startTime
 # pr.plot_sched_cdfs_tcp (campaign_dir=campaign_dir, nruns=20, n_bins=100, figure_folder=campaign_dir + 'figures/sched-comparison/tcp/')
 # pr.plot_sched_cdfs_udp (campaign_dir=campaign_dir, nruns=20, n_bins=100, figure_folder=campaign_dir + 'figures/sched-comparison/udp/')
 # pr.plot_sched_scatter_udp (csv_path=csv_path, figure_folder=campaign_dir + 'figures/sched-comparison/udp/', appTime=appTime)
-pr.plot_sched_scatter_tcp (csv_path=csv_path, figure_folder=campaign_dir + 'figures/sched-comparison/udp/', appTime=appTime)
+# pr.plot_sched_scatter_tcp (csv_path=csv_path, figure_folder=campaign_dir + 'figures/sched-comparison/udp/', appTime=appTime)
+# pr.plot_carrier_load (campaign_dir=campaign_dir, nruns=20, figure_folder=campaign_dir + 'figures/sched-comparison/udp/')
+
+campaign_dir = 'campaign-load/'
+pr.plot_padded_sym (campaign_dir=campaign_dir, nruns=20, figure_folder=campaign_dir + 'figures/sched-comparison/udp/', appTime=appTime, numUsers=7)

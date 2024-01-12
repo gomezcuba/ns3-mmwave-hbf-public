@@ -53,7 +53,6 @@
 #include <ns3/double.h>
 #include <ns3/mmwave-mi-error-model.h>
 #include "mmwave-mac-pdu-tag.h"
-//#include "ns3/src/mmwave/helper/mmwave-helper.h"
 
 #include <ns3/three-gpp-spectrum-propagation-loss-model.h>
 

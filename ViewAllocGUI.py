@@ -4,6 +4,8 @@ import sys
 import gi
 import cairo
 import collections
+import argparse
+
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
@@ -105,7 +107,7 @@ class MyDrawingAreaFrame(Gtk.Frame):
 
 
 class MyWindow(Gtk.Window):
-    def __init__(self):
+    def __init__(self,iniFile="TCP-SBF-PAD4-HARQ.log"):
         Gtk.Window.__init__(self, title="Ns3 mmWave HBF Frame Visualization Tool")
         self.set_default_size(800, 100)
         self.connect("destroy", Gtk.main_quit)
@@ -113,7 +115,7 @@ class MyWindow(Gtk.Window):
         self.frameFocused=0
         self.maxFrames=10
         self.frameInfoCache={}
-        self.workingfilename="TCP-SBF-PAD4-HARQ.log"
+        self.workingfilename=iniFile
         self.maxLayer=1
 
         grid = Gtk.Grid()
@@ -129,6 +131,7 @@ class MyWindow(Gtk.Window):
 
         self.fChooser = Gtk.FileChooserButton()
         self.fChooser.connect("file-set", self.file_selected)
+        self.fChooser.set_filename(iniFile)
         self.actionbar.pack_start(self.fChooser)
         self.bButton = Gtk.Button(label="<=")
         self.bButton.connect("clicked", self.bk_button_clicked)
@@ -168,7 +171,7 @@ class MyWindow(Gtk.Window):
         self.drawingArea.redraw()
         self.drawingArea.queue_draw()
     def getFrameInfo(self, frameNum ):
-        if self.frameInfoCache.has_key(frameNum):
+        if frameNum in self.frameInfoCache:
             frameInfo = self.frameInfoCache[frameNum]
         else:
             frameInfo = self.obtainFrameInfoFromFile(frameNum)
@@ -265,6 +268,15 @@ class MyWindow(Gtk.Window):
         file.close()
         return(frameInfo)
 
-win = MyWindow()
+parser = argparse.ArgumentParser(description='ns-3 mmWave MU-MIMO Subframe Visualization')
+parser.add_argument('-F', type=str,help='File to be viewed')
+
+args = parser.parse_args()
+
+if args.F:
+    print(args.F)
+    win = MyWindow(args.F)
+else:
+    win = MyWindow()
 win.show_all()
 Gtk.main()
