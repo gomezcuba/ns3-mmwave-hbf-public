@@ -6,10 +6,27 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 plt.close('all')
-
-traceData_one = pd.read_csv('./SICF-ABF-1LAY-UNRL.trace',sep='\t',header=(0))
-traceData_nosic = pd.read_csv('./SICF-ABF-PAD4-UNRL.trace',sep='\t',header=(0))
-traceData_sic = pd.read_csv('./SICT-ABF-PAD4-UNRL.trace',sep='\t',header=(0))
+# traceData_one = pd.read_csv('./SICF-ABF-1LAY-UNRL.trace',sep='\t',header=(0))
+# traceData_nosic = pd.read_csv('./SICF-ABF-PAD4-UNRL.trace',sep='\t',header=(0))
+# traceData_sic = pd.read_csv('./SICT-ABF-PAD4-UNRL.trace',sep='\t',header=(0))
+l=[]
+Nparts=10
+for npart in range(Nparts):
+    traceData_one_part = pd.read_csv(f'./SICF-ABF-1LAY-UNRL.part{npart+1}.trace',sep='\t',header=(0))
+    l.append(traceData_one_part)
+traceData_one = pd.concat(l,keys=range(Nparts))
+l=[]
+Nparts=10
+for npart in range(Nparts):
+    traceData_nosic_part = pd.read_csv(f'./SICF-ABF-PAD4-UNRL.part{npart+1}.trace',sep='\t',header=(0))
+    l.append(traceData_nosic_part)
+traceData_nosic = pd.concat(l,keys=range(Nparts))
+l=[]
+Nparts=10
+for npart in range(Nparts):
+    traceData_sic_part = pd.read_csv(f'./SICT-ABF-PAD4-UNRL.part{npart+1}.trace',sep='\t',header=(0))
+    l.append(traceData_sic_part)
+traceData_sic = pd.concat(l,keys=range(Nparts))
 nMaxLayer_nosic = np.max(traceData_nosic.RxLayer)
 nMaxLayer_sic = np.max(traceData_sic.RxLayer)
 nMaxLayer = np.maximum( nMaxLayer_nosic, nMaxLayer_sic)
