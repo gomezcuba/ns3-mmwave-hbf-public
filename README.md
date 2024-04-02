@@ -1,3 +1,25 @@
+# SIC implementation for the mmWave ns-3 module #
+
+This repository contains a fork of the [HBF extension of the ns-3 mmwave module](https://github.com/signetlabdei/ns3-mmwave-hbf) for the implementation of SIC receiver.
+
+To use the code, please take into account that this repo is based on a 2019 fork of ns-3 and some legacy usage methods are necessary (until the repo is upgraded to the latest version of ns-3)
+
+1. The main ns-3 control command and build tool is named "waf" and requires Python2. Modern system users may need to create a [virtual environment](https://docs.python.org/3/library/venv.html) with Python2 to run the legacy simulator build tools.
+2. Commands mostly work like in the current "./ns" script. Use the following waf commands to build the simulator. 
+
+    ./waf configure --enable-examples --enable-tests
+    
+    ./waf build
+
+2. The SIC HBF mmwave simulation is contained in Scratch/mmwave-hbf.cc. Use the following command to run a basic simulation
+
+    ./waf --run "mmwave-hbf <ARGS>"
+	
+3. The shell script "testsSIC.sh" provides an example of commands to run the three simulation scenarios in the paper
+
+
+Copied below is the original README of the mmwave module HBF repo
+
 # mmWave ns-3 module #
 
 This is an [ns-3](https://www.nsnam.org "ns-3 Website") mmWave module for the simulation
