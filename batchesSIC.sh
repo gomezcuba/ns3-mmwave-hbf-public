@@ -1,6 +1,6 @@
 # !/bin/sh
 
-for NROUND in {4..8}
+for NROUND in {0..49}
 do
 
 	for NITER in {0..1}

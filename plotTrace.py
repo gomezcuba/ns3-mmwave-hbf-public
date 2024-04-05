@@ -17,7 +17,7 @@ def getDFparts(template,Nparts,parsef):
         l.append(results)
     return(pd.concat(l,keys=range(Nparts)))
 
-Nparts=16
+Nparts=100
 
 traceData_one = getDFparts('./SICF-ABF-1LAY-UNRL.run{}.trace',Nparts, lambda fname: pd.read_csv(fname,sep='\t',header=(0)))
 traceData_nosic = getDFparts('./SICF-ABF-PAD4-UNRL.run{}.trace',Nparts, lambda fname: pd.read_csv(fname,sep='\t',header=(0)))

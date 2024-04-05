@@ -9,7 +9,7 @@ from matplotlib import cm
 
 plt.close('all')
 
-Nparts=16
+Nparts=100
 
 def digestTimeFile(name):
     file = open(name)
@@ -50,6 +50,12 @@ def plotCDFdecorate(data,N,text,linfmt='-',clr='b'):
     [count,vals]=np.histogram(data,bins=N,density=False)
     CDF=np.cumsum(np.concatenate([[0],count]) / np.sum(count))
     plt.plot(vals,CDF,linfmt,color=clr,label=text)
+    
+
+def labelPercentile(data,pctl,text,mkfmt='s',clr='b'):
+    val=np.percentile(data,pctl)
+    plt.text(val,pctl/100,text.format(val),color=clr,verticalalignment='top',horizontalalignment='left')
+    plt.plot(val,pctl/100,marker=mkfmt,markeredgecolor=clr,markerfacecolor=(0,0,0,0),markersize=12)
 #alternativamente datos = pd.DataFrame(np.array([listaSINR,listaTBLER]).T,columns=("SINR","TBLER"))
 
 # phyStats_one,recBytes_one = diggestLogFile('./SICF-ABF-1LAY-UNRL.log')
@@ -63,13 +69,13 @@ def getDFparts(template,Nparts,parsef):
     tuple_of_lists = zip(*l)
     iterable_of_df = map( lambda l: pd.concat(l,keys=range(Nparts)) , tuple_of_lists)
     return( tuple(iterable_of_df ) )
-
-phyStats_one,recBytes_one_all = getDFparts('./SICF-ABF-1LAY-UNRL.run{}.log',Nparts,diggestLogFile)    
-recBytes_one = recBytes_one_all.groupby("rnti").mean()
-phyStats_nosic,recBytes_nosic_all = getDFparts('./SICF-ABF-PAD4-UNRL.run{}.log',Nparts,diggestLogFile)    
-recBytes_nosic = recBytes_nosic_all.groupby("rnti").mean()
-phyStats_sic,recBytes_sic_all = getDFparts('./SICT-ABF-PAD4-UNRL.run{}.log',Nparts,diggestLogFile)    
-recBytes_sic = recBytes_sic_all.groupby("rnti").mean()
+10
+# phyStats_one,recBytes_one_all = getDFparts('./SICF-ABF-1LAY-UNRL.run{}.log',Nparts,diggestLogFile)    
+# recBytes_one = recBytes_one_all.groupby("rnti").mean()
+# phyStats_nosic,recBytes_nosic_all = getDFparts('./SICF-ABF-PAD4-UNRL.run{}.log',Nparts,diggestLogFile)    
+# recBytes_nosic = recBytes_nosic_all.groupby("rnti").mean()
+# phyStats_sic,recBytes_sic_all = getDFparts('./SICT-ABF-PAD4-UNRL.run{}.log',Nparts,diggestLogFile)    
+# recBytes_sic = recBytes_sic_all.groupby("rnti").mean()
 
 # plt.figure(1)
 # plotCDFdecorate(phyStats_one.TBLER,50,"Single Layer",'--o',clr='k')
@@ -102,11 +108,24 @@ plt.ylabel('User Achievable rate (Mbps)')
 plt.legend()
 plt.savefig('./rate_vs_user.eps')
 
+
+plt.figure(4)
+plt.plot(np.ones(11)*1500/2e-3 *8*1e-6,np.arange(0,1.1,1/10),'-.k',label='Offered Traffic')
+plotCDFdecorate(recBytes_one_all.recBytesUL/1.15 *8*1e-6,50,"Single Layer",'--o',clr='g')
+plotCDFdecorate(recBytes_nosic_all.recBytesUL/1.15 *8*1e-6,50,'4 Layer TIN',':x',clr='r')
+plotCDFdecorate(recBytes_sic_all.recBytesUL/1.15 *8*1e-6,50,'4 Layer SIC','-',clr='b')
+labelPercentile(recBytes_one_all.recBytesUL/1.15 *8*1e-6,10,'  {:.1f} Mbps','o','g')
+labelPercentile(recBytes_nosic_all.recBytesUL/1.15 *8*1e-6,10,'  {:.1f} Mbps','o','r')
+labelPercentile(recBytes_sic_all.recBytesUL/1.15 *8*1e-6,10,'  {:.1f} Mbps','o','b')
+plt.ylabel('User Achievable rate (Mbps)')
+plt.legend()
+plt.savefig('./cdfThroughput.eps')
+
 # data = pd.read_csv ('UlPdcpStats.txt', delimiter = " ", index_col=False, names = ['mode', 'time', 'txid','rxid','drbid', 'size', 'delay'], engine='python', header=0)
 
 # grouped=data[data['mode']=='Rx'].groupby('rxid').delay.mean()
 
-# plt.figure(4)
+# plt.figure(5)
 # plt.bar(grouped.index,grouped*1e-6)
 
 # getDFparts('./SICF-ABF-1LAY-UNRL.run{}.time',6,lambda s: pd.DataFrame([digestTimeFile(s)]) )
@@ -123,12 +142,12 @@ runtimes_nosic=getArrayparts('./SICF-ABF-PAD4-UNRL.run{}.time',Nparts,digestTime
 runtimes_sic=getArrayparts('./SICT-ABF-PAD4-UNRL.run{}.time',Nparts,digestTimeFile)
 
 runtimes=np.vstack((runtimes_one,runtimes_nosic,runtimes_sic))
-plt.figure(4)
-plt.bar(range(3),np.mean(runtimes,axis=1))
-# plt.errorbar(range(3),np.mean(runtimes,axis=1),np.std(runtimes,axis=1),None,'sk',capsize=5,label='Mean and STD')
-# plt.scatter(np.tile(range(3),(Nparts,1)),runtimes.T,marker='x',color='b',label='Scatter cloud')
-# plt.axis([-.3,2.3,1900,2400])
-# plt.legend()
+plt.figure(6)
+# plt.bar(range(3),np.mean(runtimes,axis=1))
+plt.errorbar(range(3),np.mean(runtimes,axis=1),np.std(runtimes,axis=1),None,'sk',capsize=5,label='Mean and STD')
+plt.scatter(np.tile(range(3),(Nparts,1)),runtimes.T,marker='x',color='b',label='Scatter cloud')
+plt.axis([-.3,2.3,1900,2400])
+plt.legend()
 plt.xticks(range(3),['Single Layer','4 Layer TIN','4 Layer SIC'])
 plt.ylabel("Mean run time (s)")
 plt.savefig('./runtime_vs_alg.eps')
